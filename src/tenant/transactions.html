@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactions - Accounting System</title>
+
+    <!-- Prevent page caching -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Immediate session check -->
+    <script>
+        document.documentElement.style.visibility = 'hidden';
+        (function() {
+            fetch('/php/api/auth/session.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success || data.data.user.role !== 'tenant') {
+                        window.location.replace('/tenant/login.html');
+                        return;
+                    }
+                    const user = data.data.user;
+                    // Priority 1: Check registration status (pending/declined take precedence)
+                    const status = user.registration_status || 'approved';
+                    if (status === 'pending') {
+                        window.location.replace('/tenant/pending-approval.html');
+                        return;
+                    } else if (status === 'declined') {
+                        window.location.replace('/tenant/registration-declined.html');
+                        return;
+                    }
+                    // Priority 2: Check if account is deactivated (only for approved users)
+                    if (user.is_active === 0 || user.is_active === '0' || user.is_active === false) {
+                        window.location.replace('/tenant/account-deactivated.html');
+                        return;
+                    }
+                    document.documentElement.style.visibility = 'visible';
+                })
+                .catch(() => window.location.replace('/tenant/login.html'));
+        })();
+    </script>
+
+    <link rel="stylesheet" href="/admin/assets/css/admin-professional.css">
+    <link rel="stylesheet" href="/admin/assets/css/notifications.css">
+
+    <style>
+        /* Table cell truncation */
+        .data-table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .data-table td:hover {
+            overflow: visible;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        /* Fix for transaction modal line overflow */
+        .transaction-line .form-group {
+            overflow: hidden;
+        }
+
+        /* Button consistency */
+        .header-actions button {
+            height: 40px;
+            min-width: 140px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .header-actions button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        /* Loading spinner animation */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Row hover effect */
+        .data-table tbody tr:hover {
+            background-color: #f8f9fa;
+            transition: background-color 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div class="admin-brand">
+                <h1>Accounting System</h1>
+                <p class="admin-role" id="companyName">Loading...</p>
+            </div>
+
+            <!-- Logout Button - Easy Access -->
+            <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn-logout" id="logoutBtn" style="width: 100%; padding: 1rem">
+                    Logout
+                </button>
+            </div>
+
+            <nav class="admin-nav">
+                <a href="/tenant/dashboard.html" class="admin-nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tenant/accounts.html" class="admin-nav-item">
+                    <span class="icon">💰</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/tenant/transactions.html" class="admin-nav-item active">
+                    <span class="icon">📝</span>
+                    <span>Transactions</span>
+                </a>
+                <a href="/tenant/reports.html" class="admin-nav-item">
+                    <span class="icon">📈</span>
+                    <span>Reports</span>
+                </a>
+                <a href="/tenant/company.html" class="admin-nav-item">
+                    <span class="icon">🏢</span>
+                    <span>Company</span>
+                </a>
+                <a href="/tenant/settings.html" class="admin-nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="admin-user">
+                <div class="admin-user-info">
+                    <strong id="username">Loading...</strong>
+                    <small id="userEmail">user@company.com</small>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <header class="content-header">
+                <div>
+                    <h2 class="page-title">Transactions & Accounts</h2>
+                    <p class="page-subtitle">Create accounts and record transactions</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="loadTransactions()" style="padding: 10px 20px;">Refresh</button>
+                    <button class="btn btn-primary" onclick="openAccountModal()" style="background: #27ae60; padding: 10px 20px; margin-left: 10px;">Create Account</button>
+                    <button class="btn btn-primary" onclick="openTransactionModal()" style="background: #3498db; padding: 10px 20px; margin-left: 10px;">Create Transaction</button>
+                    <button class="btn btn-warning" onclick="openClosePeriodModal()" style="background: #9c27b0; padding: 10px 20px; margin-left: 10px; color: white;">📊 Close Period</button>
+                </div>
+            </header>
+
+            <div style="padding: 30px;">
+                <!-- Filter Section -->
+                <div class="filters-section" style="background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; justify-content: space-around;">
+                    <div class="filter-group" style="display: flex; align-items: center;">
+                        <label>Status:</label>
+                        <select id="filterStatus" onchange="filterTransactions()" style="padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                            <option value="">All Status</option>
+                            <option value="1">Pending</option>
+                            <option value="2">Posted</option>
+                            <option value="3">Voided</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Date Range:</label>
+                        <input type="date" id="filterDateFrom" onchange="filterTransactions()" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                        <span style="margin: 0 5px;">to</span>
+                        <input type="date" id="filterDateTo" onchange="filterTransactions()" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Search:</label>
+                        <input type="text" id="searchInput" placeholder="Search description or number..."
+                               onkeyup="filterTransactions()"
+                               style="padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 4px; min-width: 250px;">
+                    </div>
+                </div>
+
+                <!-- Transactions Table -->
+                <div class="data-table-container">
+                    <table class="data-table" style="table-layout: fixed; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="width: 140px;">Transaction #</th>
+                                <th style="width: 110px;">Date</th>
+                                <th style="width: 300px;">Description</th>
+                                <th style="text-align: right; width: 120px;">Amount</th>
+                                <th style="text-align: center; width: 100px;">Status</th>
+                                <th style="text-align: center; width: 180px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionsContainer">
+                            <tr>
+                                <td colspan="6" class="loading-cell">
+                                    <div class="loading-spinner"></div>
+                                    Loading transactions...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Pagination Controls -->
+                    <div id="paginationControls" style="display: none; justify-content: space-between; align-items: center; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="color: #555; font-size: 14px;">
+                            Showing <strong id="showingStart">0</strong> to <strong id="showingEnd">0</strong> of <strong id="showingTotal">0</strong> transactions
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="prevBtn" onclick="previousPage()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" disabled>
+                                ← Previous
+                            </button>
+                            <span id="pageInfo" style="display: flex; align-items: center; padding: 0 15px; color: #555; font-weight: 600;"></span>
+                            <button id="nextBtn" onclick="nextPage()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" disabled>
+                                Next →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Account Creation Modal (SEPARATE from transactions) -->
+    <div id="accountModal" class="modal" style="display: none;">
+        <div class="modal__overlay" onclick="closeAccountModal()"></div>
+        <div class="modal__content" style="max-width: 600px;">
+            <div class="modal__header">
+                <h3 class="modal__title">➕ Create New Account</h3>
+                <button class="modal__close" onclick="closeAccountModal()">&times;</button>
+            </div>
+            <div class="modal__body">
+                <div style="background: #e8f5e9; padding: 15px; border-radius: 4px; border-left: 4px solid #27ae60; margin-bottom: 20px;">
+                    <strong>ℹ️ Creating an Account</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 14px; color: #555;">
+                        This creates a single account in your chart of accounts. Use "Create Transaction" to record business activities using double-entry bookkeeping.
+                    </p>
+                </div>
+
+                <form id="accountForm">
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px; margin-bottom: 15px;">
+                        <div class="form-group">
+                            <label>Account Code <span style="color: red;">*</span></label>
+                            <input type="text" id="accountCode" class="form-control" placeholder="e.g., 1001" required>
+                            <small style="color: #7f8c8d; font-size: 12px;">Will be auto-suggested</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Account Name <span style="color: red;">*</span></label>
+                            <input type="text" id="accountName" class="form-control" placeholder="e.g., Cash" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>Account Type <span style="color: red;">*</span></label>
+                        <select id="accountType" class="form-control" onchange="handleAccountTypeChange()" required>
+                            <option value="">-- Select Account Type --</option>
+                            <option value="1">Asset (1000-1999)</option>
+                            <option value="2">Liability (2000-2999)</option>
+                            <option value="3">Equity (3000-3999)</option>
+                            <option value="4">Revenue (4000-4999)</option>
+                            <option value="5">Expense (5000-5999)</option>
+                        </select>
+                    </div>
+
+                    <!-- External Account Checkbox -->
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; background: #fff3cd; padding: 12px; border-radius: 4px; border: 2px solid #f39c12;">
+                            <input type="checkbox" id="isExternalAccount" onchange="handleExternalAccountToggle()" style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
+                            <span style="flex: 1;">
+                                <strong style="color: #856404;">🌐 External Source Account (Simulation)</strong>
+                                <br>
+                                <small style="color: #856404;">Check this to create an external account with UNLIMITED balance for simulation purposes (represents outside world: banks, investors, customers, vendors)</small>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>Description (Optional)</label>
+                        <textarea id="accountDescription" class="form-control" rows="2" placeholder="Brief description of this account"></textarea>
+                    </div>
+
+                    <div id="assetWarning" style="display: none; background: #fff3cd; border: 2px solid #f39c12; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                        <strong style="color: #856404;">⚠️ Asset Account Rule:</strong>
+                        <p style="margin: 8px 0 0 0; color: #856404; font-size: 14px;">
+                            Asset accounts <strong>MUST start at $0.00</strong> (accounting principle). You'll increase the balance by creating transactions (e.g., owner investment, sales, etc.).
+                        </p>
+                    </div>
+
+                    <div id="otherTypeInfo" style="display: none; background: #e3f2fd; border: 2px solid #2196f3; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                        <strong style="color: #1565c0;">ℹ️ Opening Balance:</strong>
+                        <p style="margin: 8px 0; color: #1565c0; font-size: 14px;">
+                            This account will start at $0.00. Use transactions to record the opening balance or ongoing activities.
+                        </p>
+                    </div>
+                </form>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeAccountModal()">Cancel</button>
+                <button class="btn btn--primary" onclick="saveAccount()" style="background: #27ae60;">Create Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Transaction Modal (DOUBLE-ENTRY ONLY) -->
+    <div id="transactionModal" class="modal" style="display: none;">
+        <div class="modal__overlay" onclick="closeTransactionModal()"></div>
+        <div class="modal__content" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="modal__header" style="flex-shrink: 0; background: white; z-index: 10; border-bottom: 2px solid #ecf0f1;">
+                <h3 class="modal__title" id="transactionModalTitle">📝 Create Transaction (Double-Entry)</h3>
+                <button class="modal__close" onclick="closeTransactionModal()">&times;</button>
+            </div>
+            <div class="modal__body" style="flex: 1; overflow-y: auto; padding: 20px;">
+                <div style="background: #e8f4f8; padding: 18px; border-radius: 6px; border-left: 4px solid #2196f3; margin-bottom: 20px;">
+                    <strong style="color: #1565c0;">📝 DOUBLE-ENTRY TRANSACTION</strong>
+                    <p style="margin: 10px 0 0 0; font-size: 14px; color: #424242; line-height: 1.6;">
+                        This system enforces double-entry bookkeeping. Every transaction requires a minimum of two entries where <strong>Total Debits must equal Total Credits</strong>. The accounting equation (<code>Assets = Liabilities + Equity</code>) will be validated upon posting.
+                    </p>
+                </div>
+
+                <div style="background: #f3e5f5; padding: 18px; border-radius: 6px; border-left: 4px solid #9c27b0; margin-bottom: 20px;">
+                    <strong style="color: #6a1b9a;">💡 REVENUE & EXPENSES ARE "LABELS"</strong>
+                    <p style="margin: 10px 0 8px 0; font-size: 14px; color: #424242; line-height: 1.6;">
+                        <strong>Important:</strong> Revenue and Expense accounts are <strong>temporary labels</strong> that track WHY money moved, not actual money itself.
+                    </p>
+                    <div style="background: rgba(255,255,255,0.7); padding: 12px; border-radius: 4px; margin-top: 12px;">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 8px;"><strong>✅ Valid Normal Transactions:</strong></div>
+                        <ul style="margin: 6px 0 0 20px; font-size: 13px; color: #666; line-height: 1.8;">
+                            <li><strong>Asset ↔ Revenue:</strong> Debit Cash, Credit Sales Revenue (earned money)</li>
+                            <li><strong>Expense ↔ Asset:</strong> Debit Rent Expense, Credit Cash (paid cash)</li>
+                            <li><strong>Asset ↔ Liability:</strong> Debit Cash, Credit Loan Payable (borrowed money)</li>
+                            <li><strong>Liability ↔ Expense:</strong> Debit Utilities Expense, Credit Utilities Payable (owe for services)</li>
+                            <li><strong>Liability ↔ Asset:</strong> Debit Loan Payable, Credit Cash (paid off debt)</li>
+                            <li><strong>Liability ↔ Revenue:</strong> Debit Unearned Revenue, Credit Service Revenue (earned prepaid revenue)</li>
+                            <li><strong>Asset ↔ Equity:</strong> Debit Cash, Credit Owner's Capital (owner invested)</li>
+                        </ul>
+                    </div>
+                    <div style="background: #e3f2fd; padding: 12px; border-radius: 4px; margin-top: 12px;">
+                        <div style="font-size: 13px; color: #1565c0; margin-bottom: 8px;"><strong>🔄 How Accounts Behave:</strong></div>
+                        <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                            <tr>
+                                <th style="text-align: left; padding: 4px; border-bottom: 1px solid #bbb;">Account Type</th>
+                                <th style="text-align: center; padding: 4px; border-bottom: 1px solid #bbb;">Increases With</th>
+                                <th style="text-align: center; padding: 4px; border-bottom: 1px solid #bbb;">Decreases With</th>
+                            </tr>
+                            <tr>
+                                <td style="padding: 4px;">Assets</td>
+                                <td style="text-align: center; color: #27ae60; padding: 4px;">Debit</td>
+                                <td style="text-align: center; color: #e74c3c; padding: 4px;">Credit</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 4px;">Liabilities</td>
+                                <td style="text-align: center; color: #27ae60; padding: 4px;">Credit</td>
+                                <td style="text-align: center; color: #e74c3c; padding: 4px;">Debit</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 4px;">Equity</td>
+                                <td style="text-align: center; color: #27ae60; padding: 4px;">Credit</td>
+                                <td style="text-align: center; color: #e74c3c; padding: 4px;">Debit</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 4px;">Revenue</td>
+                                <td style="text-align: center; color: #27ae60; padding: 4px;">Credit</td>
+                                <td style="text-align: center; color: #e74c3c; padding: 4px;">Debit</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 4px;">Expenses</td>
+                                <td style="text-align: center; color: #27ae60; padding: 4px;">Debit</td>
+                                <td style="text-align: center; color: #e74c3c; padding: 4px;">Credit</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div style="background: #ffebee; padding: 12px; border-radius: 4px; margin-top: 12px;">
+                        <div style="font-size: 13px; color: #c62828; margin-bottom: 8px;"><strong>❌ Invalid Transactions:</strong></div>
+                        <ul style="margin: 6px 0 0 20px; font-size: 13px; color: #d32f2f; line-height: 1.8;">
+                            <li><strong>Revenue ↔ Expense:</strong> These never pair directly!</li>
+                            <li><strong>Revenue/Expense ↔ Equity:</strong> Only in period-end closing (requires admin approval)</li>
+                        </ul>
+                    </div>
+                    <a href="/docs/accounting-rules.html#revenue-expense" target="_blank" style="color: #9c27b0; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block; margin-top: 10px;">
+                        📚 Learn More: Complete Transaction Rules →
+                    </a>
+                </div>
+
+                <div style="background: #fff9e6; padding: 18px; border-radius: 6px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
+                    <strong style="color: #f57c00;">🌐 EXTERNAL SOURCE ACCOUNTS</strong>
+                    <p style="margin: 10px 0 8px 0; font-size: 14px; color: #424242; line-height: 1.6;">
+                        When establishing accounts from zero balance, utilize <strong>External Source Accounts</strong> to represent capital from outside entities (investors, financial institutions, or customers). This maintains transaction integrity and provides clear audit trails.
+                    </p>
+                    <div style="margin-top: 12px; font-size: 13px; color: #666;">
+                        <strong>Transaction Flow:</strong> External Source <span style="color: #2196f3; font-weight: bold;">→</span> Company Account
+                    </div>
+                    <a href="/external-world-simulator.html" target="_blank" style="color: #2196f3; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block; margin-top: 8px;">
+                        📚 Learn More: External World Simulator →
+                    </a>
+                </div>
+
+                <div style="background: #ffebee; padding: 18px; border-radius: 6px; border-left: 4px solid #e53935; margin-bottom: 25px;">
+                    <strong style="color: #c62828;">⚠️ IMPORTANT NOTICE</strong>
+                    <ul style="margin: 12px 0 0 20px; padding: 0; font-size: 14px; color: #424242; line-height: 1.8;">
+                        <li><strong>Posted transactions are permanent</strong> and cannot be edited or deleted</li>
+                        <li>Account balances will be <strong>updated immediately</strong> upon posting</li>
+                        <li>Transactions appear in <strong>financial reports</strong> and audit trails</li>
+                        <li>System validates accounting integrity before accepting transaction</li>
+                    </ul>
+                    <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.7); border-radius: 4px; font-size: 13px; color: #666;">
+                        💡 <strong>Tip:</strong> Save as "Pending" to review before posting. Pending transactions can be edited or deleted.
+                    </div>
+                </div>
+
+                <form id="transactionForm">
+                    <input type="hidden" id="transactionId">
+
+                    <!-- Transaction Details -->
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div class="form-group">
+                            <label for="transactionDate">Transaction Date <span style="color: red;">*</span></label>
+                            <input type="date" id="transactionDate" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="referenceNumber">Reference Number</label>
+                            <input type="text" id="referenceNumber" class="form-control" placeholder="Optional">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description <span style="color: red;">*</span></label>
+                        <textarea id="description" class="form-control" rows="2" required placeholder="Enter transaction description"></textarea>
+                    </div>
+
+                    <!-- Transaction Lines Section -->
+                    <div style="margin-top: 30px; border-top: 2px solid #ecf0f1; padding-top: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="margin: 0; color: #2c3e50;">Transaction Lines (Double-Entry)</h4>
+                            <button type="button" class="btn btn-secondary" style="background: #27ae60; color: white; border: none;" onclick="addTransactionLine()">+ Add Line</button>
+                        </div>
+
+                        <div id="transactionLinesContainer">
+                            <!-- Transaction lines will be added here -->
+                        </div>
+
+                        <!-- Balance Summary -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
+                                <span>Total Debits:</span>
+                                <strong style="color: #27ae60;" id="totalDebits">$0.00</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
+                                <span>Total Credits:</span>
+                                <strong style="color: #e74c3c;" id="totalCredits">$0.00</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 16px; padding-top: 10px; border-top: 2px solid #dee2e6; margin-top: 10px;">
+                                <strong>Difference:</strong>
+                                <strong id="balanceDifference" style="color: #e74c3c;">$0.00</strong>
+                            </div>
+                            <div id="balanceMessage" style="margin-top: 10px; padding: 10px; border-radius: 4px; display: none;"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal__footer" style="flex-shrink: 0; background: white; border-top: 2px solid #ecf0f1; padding: 15px 20px;">
+                <button class="btn btn--secondary" onclick="closeTransactionModal()">Cancel</button>
+                <button class="btn btn--primary" onclick="saveTransaction('pending')" id="savePendingBtn">Save as Pending</button>
+                <button class="btn btn--primary" onclick="saveTransaction('posted')" id="savePostedBtn" style="background: #27ae60;">Save & Post</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Transaction Modal -->
+    <div id="viewModal" class="modal" style="display: none;" onclick="if(event.target === this) closeViewModal()">
+        <div class="modal__overlay"></div>
+        <div class="modal__content" style="max-width: 900px;">
+            <div class="modal__header">
+                <h3 class="modal__title">Transaction Details</h3>
+                <button class="modal__close" onclick="closeViewModal()">&times;</button>
+            </div>
+            <div class="modal__body" id="viewModalContent">
+                <!-- Content loaded dynamically -->
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeViewModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Close Period Modal -->
+    <div id="closePeriodModal" class="modal" style="display: none;">
+        <div class="modal__overlay" onclick="closeClosePeriodModal()"></div>
+        <div class="modal__content" style="max-width: 800px;">
+            <div class="modal__header" style="background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%); color: white;">
+                <h3 class="modal__title">📊 Close Accounting Period</h3>
+                <button class="modal__close" onclick="closeClosePeriodModal()" style="color: white;">&times;</button>
+            </div>
+            <div class="modal__body">
+                <div style="background: #f3e5f5; padding: 20px; border-radius: 8px; border-left: 5px solid #9c27b0; margin-bottom: 25px;">
+                    <h4 style="margin: 0 0 15px 0; color: #6a1b9a; font-size: 18px;">🔄 What is "Closing the Period"?</h4>
+                    <p style="margin: 0 0 12px 0; font-size: 14px; color: #424242; line-height: 1.7;">
+                        At the end of an accounting period (month, quarter, or year), we perform a <strong>closing entry</strong> that:
+                    </p>
+                    <ul style="margin: 0 0 12px 20px; font-size: 14px; color: #424242; line-height: 1.8;">
+                        <li><strong>Calculates Net Income:</strong> Revenue - Expenses</li>
+                        <li><strong>Transfers to Equity:</strong> Moves net profit/loss to Retained Earnings</li>
+                        <li><strong>Resets Temporary Accounts:</strong> Revenue & Expenses become $0</li>
+                        <li><strong>Preserves Real Balances:</strong> Assets & Liabilities remain unchanged</li>
+                    </ul>
+                    <div style="background: rgba(255,255,255,0.8); padding: 12px; border-radius: 6px; margin-top: 12px;">
+                        <strong style="color: #6a1b9a;">💡 Key Insight:</strong>
+                        <p style="margin: 6px 0 0 0; font-size: 13px; color: #666;">
+                            Revenue & Expenses are <strong>temporary labels</strong> that track WHY money moved during the period.
+                            After closing, the NET RESULT (profit/loss) moves to Retained Earnings, and the labels reset for the next period.
+                            Your actual cash and assets DON'T change—they already reflect the real money from day-to-day transactions!
+                        </p>
+                    </div>
+                </div>
+
+                <div id="closePeriodSummary">
+                    <!-- Dynamic content will be loaded here -->
+                    <div style="text-align: center; padding: 40px; color: #999;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
+                        <p>Click "Calculate Period Summary" below to analyze current balances</p>
+                    </div>
+                </div>
+
+                <div style="background: #fff9e6; padding: 15px; border-radius: 6px; border-left: 4px solid #f39c12; margin-top: 20px;">
+                    <strong style="color: #f57c00;">⚠️ Important Notes:</strong>
+                    <ul style="margin: 10px 0 0 20px; font-size: 13px; color: #666; line-height: 1.8;">
+                        <li>This creates a permanent closing entry that <strong>cannot be undone</strong></li>
+                        <li>All Revenue and Expense accounts will be <strong>reset to $0</strong></li>
+                        <li>Net Income will be transferred to <strong>Retained Earnings (Equity)</strong></li>
+                        <li>Your Assets, Liabilities, and other Equity accounts <strong>remain unchanged</strong></li>
+                        <li>Requires <strong>admin approval</strong> before posting</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeClosePeriodModal()">Cancel</button>
+                <button class="btn btn--primary" onclick="calculatePeriodSummary()" id="calculateBtn" style="background: #2196f3;">Calculate Period Summary</button>
+                <button class="btn btn--primary" onclick="executeClosePeriod()" id="closePeriodBtn" style="background: #9c27b0; display: none;">Close Period & Submit for Approval</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/shared/js/notifications.js"></script>
+    <script src="/tenant/assets/js/transactions.js"></script>
+</body>
+</html>
+

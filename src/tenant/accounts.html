@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart of Accounts - Accounting System</title>
+
+    <!-- Prevent page caching -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Immediate session check -->
+    <script>
+        document.documentElement.style.visibility = 'hidden';
+        (function() {
+            fetch('/php/api/auth/session.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success || data.data.user.role !== 'tenant') {
+                        window.location.replace('/tenant/login.html');
+                        return;
+                    }
+                    const user = data.data.user;
+                    // Priority 1: Check registration status (pending/declined take precedence)
+                    const status = user.registration_status || 'approved';
+                    if (status === 'pending') {
+                        window.location.replace('/tenant/pending-approval.html');
+                        return;
+                    } else if (status === 'declined') {
+                        window.location.replace('/tenant/registration-declined.html');
+                        return;
+                    }
+                    // Priority 2: Check if account is deactivated (only for approved users)
+                    if (user.is_active === 0 || user.is_active === '0' || user.is_active === false) {
+                        window.location.replace('/tenant/account-deactivated.html');
+                        return;
+                    }
+                    document.documentElement.style.visibility = 'visible';
+                })
+                .catch(() => window.location.replace('/tenant/login.html'));
+        })();
+    </script>
+
+    <link rel="stylesheet" href="/admin/assets/css/admin-professional.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div class="admin-brand">
+                <h1>Accounting System</h1>
+                <p class="admin-role" id="companyName">Loading...</p>
+            </div>
+
+            <!-- Logout Button - Easy Access -->
+            <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn-logout" id="logoutBtn" style="width: 100%; padding: 1rem;">
+                    Logout
+                </button>
+            </div>
+
+            <nav class="admin-nav">
+                <a href="/tenant/dashboard.html" class="admin-nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tenant/accounts.html" class="admin-nav-item active">
+                    <span class="icon">💰</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/tenant/transactions.html" class="admin-nav-item">
+                    <span class="icon">📝</span>
+                    <span>Transactions</span>
+                </a>
+                <a href="/tenant/reports.html" class="admin-nav-item">
+                    <span class="icon">📈</span>
+                    <span>Reports</span>
+                </a>
+                <a href="/tenant/company.html" class="admin-nav-item">
+                    <span class="icon">🏢</span>
+                    <span>Company</span>
+                </a>
+                <a href="/tenant/settings.html" class="admin-nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="admin-user">
+                <div class="admin-user-info">
+                    <strong id="username">Loading...</strong>
+                    <small id="userEmail">user@company.com</small>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <header class="content-header">
+                <div>
+                    <h2 class="page-title">Chart of Accounts</h2>
+                    <p class="page-subtitle">View your company's accounts (Read-Only)</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="loadAccounts()" id="refreshBtn">
+                        <span id="refreshIcon"></span> Refresh
+                    </button>
+                </div>
+            </header>
+
+            <div style="padding: 30px;">
+                <!-- Info Banner -->
+                <div style="background: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                    <strong style="color: #856404;">ℹ️ Note:</strong>
+                    <span style="color: #856404;">Accounts cannot be created here. To add a new account, go to Transactions page and create it during transaction entry.</span>
+                </div>
+
+                <!-- Filter Section -->
+                <div class="filters-section" style="background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                    <div class="filter-group">
+                        <label>Account Type:</label>
+                        <select id="filterType" onchange="filterAccounts()" style="padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px;">
+                            <option value="">All Types</option>
+                            <option value="1">Assets</option>
+                            <option value="2">Liabilities</option>
+                            <option value="3">Equity</option>
+                            <option value="4">Revenue</option>
+                            <option value="5">Expenses</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        <select id="filterStatus" onchange="filterAccounts()" style="padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px;">
+                            <option value="">All Status</option>
+                            <option value="1">Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Search:</label>
+                        <input type="text" id="searchInput" placeholder="Search by name or code..."
+                               onkeyup="filterAccounts()"
+                               style="padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px; min-width: 200px;">
+                    </div>
+                </div>
+
+                <!-- Accounts Summary Cards -->
+                <div class="stats-grid" style="margin-bottom: 30px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Assets</div>
+                        <div class="stat-value" id="totalAssets">$0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Liabilities</div>
+                        <div class="stat-value" id="totalLiabilities">$0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Equity</div>
+                        <div class="stat-value" id="totalEquity">$0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Accounts</div>
+                        <div class="stat-value" id="totalAccounts">0</div>
+                    </div>
+                </div>
+
+                <!-- Accounts Table - Professional Design -->
+                <div class="data-table-container">
+                    <table class="data-table" style="table-layout: fixed;">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px; padding: 15px;">Code</th>
+                                <th style="width: 250px; padding: 15px;">Account Name</th>
+                                <th style="width: 120px; padding: 15px;">Type</th>
+                                <th style="text-align: right; width: 150px; padding: 15px;">Current Balance</th>
+                                <th style="text-align: center; width: 100px; padding: 15px;">Status</th>
+                                <th style="width: 200px; padding: 15px;">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accountsContainer">
+                            <tr>
+                                <td colspan="6" class="loading-cell">
+                                    <div class="loading-spinner"></div>
+                                    Loading accounts...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        console.log('[ACCOUNTS] Starting...');
+
+        let allAccounts = [];
+        let filteredAccounts = [];
+        let currentPages = {
+            1: 1, // Assets
+            2: 1, // Liabilities
+            3: 1, // Equity
+            4: 1, // Revenue
+            5: 1  // Expenses
+        };
+        let itemsPerPage = 5; // Reduced to 5 for easier testing (will be updated from user settings)
+        let accountTypes = {
+            1: 'Asset',
+            2: 'Liability',
+            3: 'Equity',
+            4: 'Revenue',
+            5: 'Expense'
+        };
+
+        // Check authentication
+        fetch('/php/api/auth/session.php')
+            .then(response => response.json())
+            .then(data => {
+                console.log('[ACCOUNTS] Session:', data);
+
+                if (!data.success) {
+                    window.location.href = '/tenant/login.html';
+                    return;
+                }
+
+                if (data.data.user.role !== 'tenant') {
+                    console.log('[ACCOUNTS] Not tenant, redirecting...');
+                    window.location.href = '/admin/dashboard.html';
+                    return;
+                }
+
+                // Check registration status
+                const regStatus = data.data.user.registration_status || 'approved';
+                if (regStatus === 'pending') {
+                    window.location.href = '/tenant/pending-approval.html';
+                    return;
+                } else if (regStatus === 'declined') {
+                    window.location.href = '/tenant/registration-declined.html';
+                    return;
+                }
+
+                // Update UI
+                document.getElementById('username').textContent = data.data.user.full_name;
+                document.getElementById('userEmail').textContent = data.data.user.email;
+                document.getElementById('companyName').textContent = data.data.company ? data.data.company.company_name : 'No Company';
+
+                // Load accounts
+                loadAccounts();
+            })
+            .catch(error => {
+                console.error('[ACCOUNTS] Session error:', error);
+                window.location.href = '/tenant/login.html';
+            });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            fetch('/php/api/auth/logout.php', { method: 'POST' })
+                .then(() => window.location.href = '/tenant/login.html');
+        });
+
+        // Load accounts with loading animation
+        function loadAccounts() {
+            console.log('[ACCOUNTS] 🔄 Loading accounts from database...');
+
+            // Show loading state
+            const refreshBtn = document.getElementById('refreshBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
+
+            refreshBtn.disabled = true;
+            refreshIcon.style.animation = 'spin 1s linear infinite';
+            refreshIcon.style.display = 'inline-block';
+
+            // Add CSS animation if not exists
+            if (!document.getElementById('spinAnimation')) {
+                const style = document.createElement('style');
+                style.id = 'spinAnimation';
+                style.textContent = `
+                    @keyframes spin {
+                        from { transform: rotate(0deg); }
+                        to { transform: rotate(360deg); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            // Add cache-busting parameter to force database requery
+            const timestamp = new Date().getTime();
+            fetch(`/php/api/accounts/list.php?_=${timestamp}`)
+                .then(response => {
+                    console.log('[ACCOUNTS] 📡 Response received from database');
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('[ACCOUNTS] 📊 Data loaded:', data);
+
+                    if (data.success) {
+                        // FILTER OUT EXTERNAL ACCOUNTS AND VOIDED ACCOUNTS
+                        const internalAccounts = (data.data || []).filter(account => {
+                            // Exclude system/external accounts
+                            if (account.is_system_account) return false;
+                            // Exclude voided accounts (description starts with [VOIDED:)
+                            if (account.description && account.description.startsWith('[VOIDED:')) return false;
+                            return true;
+                        });
+                        allAccounts = internalAccounts;
+                        filteredAccounts = internalAccounts; // Initialize filtered accounts
+                        updateSummary();
+                        displayAccounts(); // Display with pagination
+                        console.log('[ACCOUNTS] ✅ Accounts loaded successfully:', allAccounts.length, 'accounts (external and voided excluded)');
+                    } else {
+                        showError('Failed to load accounts: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('[ACCOUNTS] ❌ Error loading accounts:', error);
+                    showError('Error loading accounts');
+                })
+                .finally(() => {
+                    // Remove loading state
+                    refreshBtn.disabled = false;
+                    refreshIcon.style.animation = 'none';
+                    console.log('[ACCOUNTS] 🎉 Refresh complete');
+                });
+        }
+
+        // Update summary cards
+        function updateSummary() {
+            const assets = allAccounts.filter(a => a.account_type_id == 1);
+            const liabilities = allAccounts.filter(a => a.account_type_id == 2);
+            const equity = allAccounts.filter(a => a.account_type_id == 3);
+
+            const totalAssets = assets.reduce((sum, a) => sum + parseFloat(a.current_balance || 0), 0);
+            const totalLiabilities = liabilities.reduce((sum, a) => sum + parseFloat(a.current_balance || 0), 0);
+            const totalEquity = equity.reduce((sum, a) => sum + parseFloat(a.current_balance || 0), 0);
+
+            document.getElementById('totalAssets').textContent = '$' + totalAssets.toFixed(2);
+            document.getElementById('totalLiabilities').textContent = '$' + totalLiabilities.toFixed(2);
+            document.getElementById('totalEquity').textContent = '$' + totalEquity.toFixed(2);
+            document.getElementById('totalAccounts').textContent = allAccounts.length;
+        }
+
+        // Filter accounts
+        function filterAccounts() {
+            const typeFilter = document.getElementById('filterType').value;
+            const statusFilter = document.getElementById('filterStatus').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            filteredAccounts = allAccounts.filter(account => {
+                // Type filter
+                if (typeFilter && account.account_type_id != typeFilter) return false;
+
+                // Status filter
+                if (statusFilter !== '' && account.is_active != statusFilter) return false;
+
+                // Search filter
+                if (searchTerm) {
+                    const searchableText = (
+                        account.account_code +
+                        account.account_name +
+                        (account.description || '')
+                    ).toLowerCase();
+                    if (!searchableText.includes(searchTerm)) return false;
+                }
+
+                return true;
+            });
+
+            // Reset all pagination to page 1 on filter change
+            currentPages = { 1: 1, 2: 1, 3: 1, 4: 1, 5: 1 };
+            displayAccounts();
+        }
+
+        // Display accounts with pagination per type
+        function displayAccounts() {
+            renderAccountsWithPagination();
+        }
+
+        // Change page for specific account type
+        function changePage(typeId, page) {
+            const accountsOfType = filteredAccounts.filter(a => a.account_type_id == typeId);
+            const totalPages = Math.ceil(accountsOfType.length / itemsPerPage);
+
+            if (page < 1 || page > totalPages) return;
+
+            currentPages[typeId] = page;
+            renderAccountsWithPagination();
+        }
+
+        // Render accounts table with pagination per type
+        function renderAccountsWithPagination() {
+            const container = document.getElementById('accountsContainer');
+
+            if (filteredAccounts.length === 0) {
+                container.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #666;">No accounts found. Create accounts via <a href="/tenant/transactions.html" style="color: #3498db;">Transactions page</a>.</td></tr>';
+                return;
+            }
+
+            // Group by account type
+            const grouped = {};
+            filteredAccounts.forEach(account => {
+                const typeId = account.account_type_id;
+                if (!grouped[typeId]) grouped[typeId] = [];
+                grouped[typeId].push(account);
+            });
+
+            let html = '';
+
+            // Render in order: Assets, Liabilities, Equity, Revenue, Expenses
+            [1, 2, 3, 4, 5].forEach(typeId => {
+                if (grouped[typeId] && grouped[typeId].length > 0) {
+                    const accountsOfType = grouped[typeId];
+                    const currentPage = currentPages[typeId];
+                    const totalPages = Math.ceil(accountsOfType.length / itemsPerPage);
+
+                    // Paginate accounts for this type
+                    const start = (currentPage - 1) * itemsPerPage;
+                    const end = start + itemsPerPage;
+                    const pageAccounts = accountsOfType.slice(start, end);
+
+                    // Type header row
+                    html += `
+                        <tr style="background: #ecf0f1;">
+                            <td colspan="6" style="padding: 10px 15px; font-weight: 700; color: #2c3e50; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">
+                                ${accountTypes[typeId]}S (${accountsOfType.length} total)
+                            </td>
+                        </tr>
+                    `;
+
+                    // Account rows for current page
+                    pageAccounts.forEach(account => {
+                        const balanceColor = getBalanceColor(account.account_type_id, account.current_balance);
+
+                        html += `
+                            <tr>
+                                <td style="width: 100px; padding: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><code style="background: #ecf0f1; padding: 4px 8px; border-radius: 3px; font-size: 12px;">${account.account_code}</code></td>
+                                <td style="width: 250px; padding: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong title="${account.account_name}">${account.account_name}</strong></td>
+                                <td style="width: 120px; padding: 15px;"><span class="badge" style="background: ${getTypeColor(account.account_type_id)}; color: white; padding: 4px 8px; border-radius: 3px; font-size: 11px;">${accountTypes[account.account_type_id]}</span></td>
+                                <td style="text-align: right; width: 150px; padding: 15px;"><strong style="color: ${balanceColor};">$${parseFloat(account.current_balance || 0).toFixed(2)}</strong></td>
+                                <td style="text-align: center; width: 100px; padding: 15px;">
+                                    <span class="badge" style="background: ${account.is_active ? '#27ae60' : '#95a5a6'}; color: white; padding: 4px 8px; border-radius: 3px; font-size: 11px;">
+                                        ${account.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </td>
+                                <td style="width: 200px; padding: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${account.description || 'No description'}"><span style="color: #7f8c8d; font-size: 13px;">${account.description || '<em>No description</em>'}</span></td>
+                            </tr>
+                        `;
+                    });
+
+                    // Pagination row for this type (if needed)
+                    if (totalPages > 1) {
+                        html += `
+                            <tr>
+                                <td colspan="6" style="padding: 15px; text-align: center; background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                        <button
+                                            onclick="changePage(${typeId}, ${currentPage - 1})"
+                                            ${currentPage === 1 ? 'disabled' : ''}
+                                            style="padding: 6px 12px; background: ${currentPage === 1 ? '#ecf0f1' : '#3498db'}; color: ${currentPage === 1 ? '#7f8c8d' : 'white'}; border: none; border-radius: 4px; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; font-size: 12px; font-weight: 600;">
+                                            ← Prev
+                                        </button>
+                                        <span style="padding: 6px 12px; color: #2c3e50; font-size: 12px; font-weight: 600;">
+                                            Page ${currentPage} of ${totalPages}
+                                        </span>
+                                        <button
+                                            onclick="changePage(${typeId}, ${currentPage + 1})"
+                                            ${currentPage === totalPages ? 'disabled' : ''}
+                                            style="padding: 6px 12px; background: ${currentPage === totalPages ? '#ecf0f1' : '#3498db'}; color: ${currentPage === totalPages ? '#7f8c8d' : 'white'}; border: none; border-radius: 4px; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; font-size: 12px; font-weight: 600;">
+                                            Next →
+                                        </button>
+                                    </div>
+                                    <div style="margin-top: 8px; color: #7f8c8d; font-size: 11px;">
+                                        Showing ${start + 1} to ${Math.min(end, accountsOfType.length)} of ${accountsOfType.length} ${accountTypes[typeId].toLowerCase()}s
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Get type color
+        function getTypeColor(typeId) {
+            const colors = {
+                1: '#27ae60', // Asset - Green
+                2: '#e74c3c', // Liability - Red
+                3: '#3498db', // Equity - Blue
+                4: '#2ecc71', // Revenue - Light Green
+                5: '#e67e22'  // Expense - Orange
+            };
+            return colors[typeId] || '#95a5a6';
+        }
+
+        // Get balance color based on normal balance
+        function getBalanceColor(typeId, balance) {
+            const amount = parseFloat(balance || 0);
+
+            // Assets (debit normal) and Expenses (debit normal) - positive is good (green)
+            if (typeId == 1 || typeId == 5) {
+                return amount >= 0 ? '#27ae60' : '#e74c3c';
+            }
+
+            // Liabilities (credit normal), Equity (credit normal), Revenue (credit normal) - positive is good (green)
+            if (typeId == 2 || typeId == 3 || typeId == 4) {
+                return amount >= 0 ? '#27ae60' : '#e74c3c';
+            }
+
+            return '#2c3e50';
+        }
+
+        // Show error
+        function showError(message) {
+            const container = document.getElementById('accountsContainer');
+            container.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px; color: #e74c3c;">${message}</td></tr>`;
+        }
+    </script>
+</body>
+</html>
+

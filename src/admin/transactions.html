@@ -1,0 +1,2138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Transactions - Admin Dashboard</title>
+
+    <!-- Prevent page caching -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Immediate session check -->
+    <script>
+        document.documentElement.style.visibility = 'hidden';
+        (function() {
+            fetch('/php/api/auth/session.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success || data.data.user.role !== 'admin') {
+                        window.location.replace('/admin/login.html');
+                        return;
+                    }
+                    document.documentElement.style.visibility = 'visible';
+                })
+                .catch(() => window.location.replace('/admin/login.html'));
+        })();
+    </script>
+
+    <link rel="stylesheet" href="/admin/assets/css/admin-professional.css">
+    <script src="/admin/assets/js/badge-loader.js" defer></script>
+    <script src="/admin/assets/js/pending-badge.js" defer></script>
+    <script src="/admin/assets/js/notifications.js" defer></script>
+
+    <style>
+        /* Table cell truncation */
+        .data-table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .data-table td:hover {
+            overflow: visible;
+            white-space: normal;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div class="admin-brand">
+                <h1>Accounting System</h1>
+                <p class="admin-role">Administrator</p>
+            </div>
+
+            <!-- Logout Button - Easy Access -->
+            <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn-logout" id="logoutBtn" style="width: 100%; padding: 1rem;">
+                    Logout
+                </button>
+            </div>
+
+            <nav class="admin-nav">
+                <a href="/admin/dashboard.html" class="admin-nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/admin/companies.html" class="admin-nav-item">
+                    <span class="icon">🏢</span>
+                    <span>Companies</span>
+                </a>
+                <a href="/admin/accounts.html" class="admin-nav-item">
+                    <span class="icon">💰</span>
+                    <span>Account Management</span>
+                </a>
+                <a href="/admin/transactions.html" class="admin-nav-item active">
+                    <span class="icon">💸</span>
+                    <span>All Transactions</span>
+                </a>
+                <a href="/admin/tenants.html" class="admin-nav-item">
+                    <span class="icon">👥</span>
+                    <span>All Tenants</span>
+                </a>
+                <a href="/admin/reports.html" class="admin-nav-item">
+                    <span class="icon">📈</span>
+                    <span>Reports</span>
+                </a>
+                <a href="/admin/pending-approvals.html" class="admin-nav-item">
+                    <span class="icon">⚠️</span>
+                    <span>Pending Approvals</span>
+                    <span class="badge" id="approvalsBadge" style="background:#f39c12;color:white;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:auto;display:none;">0</span>
+                </a>
+                <a href="/admin/pending-registrations.html" class="admin-nav-item">
+                    <span class="icon">⏳</span>
+                    <span>Pending Registrations</span>
+                    <span class="badge" id="pendingBadge" style="background:#e74c3c;color:white;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:auto;display:none;">0</span>
+                </a>
+                <a href="/admin/logs.html" class="admin-nav-item">
+                    <span class="icon">📝</span>
+                    <span>Activity Logs</span>
+                </a>
+                <a href="/admin/settings.html" class="admin-nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="admin-user">
+                <div class="admin-user-info">
+                    <strong id="username">Loading...</strong>
+                    <small id="userEmail">admin@system.local</small>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <header class="content-header">
+                <div>
+                    <h2 class="page-title">All Transactions</h2>
+                    <p class="page-subtitle">View and manage transactions from all companies</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="loadData()" style="padding: 10px 20px;">Refresh</button>
+                    <button class="btn btn-primary" onclick="openAccountModal()" style="background: #27ae60; padding: 10px 20px; margin-left: 10px;">Create Account</button>
+                    <button class="btn btn-primary" onclick="openTransactionModal()" style="background: #3498db; padding: 10px 20px; margin-left: 10px;">Create Transaction</button>
+                    <button class="btn btn-warning" onclick="openClosePeriodModal()" style="background: #9c27b0; padding: 10px 20px; margin-left: 10px; color: white;">📊 Close Period</button>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <!-- Filters -->
+                <div class="filter-section" style="margin-bottom: 30px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <h3 style="font-size: 16px; font-weight: 600; color: #2c3e50; margin-bottom: 20px;">Filters</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label style="display: block; font-size: 14px; font-weight: 500; color: #555; margin-bottom: 5px;">Company</label>
+                            <select id="filterCompany" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: none;">
+                                <option value="">All Companies</option>t
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 14px; font-weight: 500; color: #555; margin-bottom: 5px;">Status</label>
+                            <select id="filterStatus" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: none;">
+                                <option value="">All Statuses</option>
+                                <option value="1">Pending</option>
+                                <option value="2">Posted</option>
+                                <option value="3">Voided</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 14px; font-weight: 500; color: #555; margin-bottom: 5px;">From Date</label>
+                            <input type="date" id="filterFromDate" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 14px; font-weight: 500; color: #555; margin-bottom: 5px;">To Date</label>
+                            <input type="date" id="filterToDate" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button onclick="applyFilters()" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                            Apply Filters
+                        </button>
+                        <button onclick="resetFilters()" style="background: #95a5a6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Statistics Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Transactions</div>
+                        <div class="stat-value" id="totalCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Pending</div>
+                        <div class="stat-value" id="pendingCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Posted</div>
+                        <div class="stat-value" id="postedCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Voided</div>
+                        <div class="stat-value" id="voidedCount">0</div>
+                    </div>
+                </div>
+
+                <!-- Transactions Table -->
+                <div class="data-table-container">
+                    <table class="data-table" style="table-layout: fixed; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="width: 140px;">Number</th>
+                                <th style="width: 100px;">Date</th>
+                                <th style="width: 100px;">Company</th>
+                                <th style="width: 220px;">Description</th>
+                                <th style="width: 100px; text-align: right;">Amount</th>
+                                <th style="width: 120px;">Status</th>
+                                <th style="width: 130px;">Created By</th>
+                                <th style="width: 100px; text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionsContainer">
+                            <tr>
+                                <td colspan="8" class="loading-cell">
+                                    <div class="loading-spinner"></div>
+                                    Loading transactions...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Pagination Controls -->
+                    <div id="paginationControls" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="color: #555; font-size: 14px;">
+                            Showing <strong id="showingStart">0</strong> to <strong id="showingEnd">0</strong> of <strong id="showingTotal">0</strong> transactions
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="prevBtn" onclick="previousPage()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" disabled>
+                                ← Previous
+                            </button>
+                            <span id="pageInfo" style="display: flex; align-items: center; padding: 0 15px; color: #555; font-weight: 600;"></span>
+                            <button id="nextBtn" onclick="nextPage()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" disabled>
+                                Next →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Void Modal -->
+    <div id="voidModal" class="modal" style="display: none;">
+        <div class="modal__content" style="max-width: 500px;">
+            <div class="modal__header">
+                <h3>Void Transaction</h3>
+                <button class="modal__close" onclick="closeVoidModal()">×</button>
+            </div>
+            <div class="modal__body">
+                <p style="margin-bottom: 20px;">
+                    Are you sure you want to void transaction <strong id="voidTransactionNumber"></strong>?
+                </p>
+                <p style="margin-bottom: 20px; color: #e74c3c; font-weight: 600;">
+                    ⚠️ This action cannot be undone. The transaction will be reversed.
+                </p>
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Void Reason:</label>
+                <textarea id="voidReason" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;" placeholder="Enter reason for voiding this transaction..."></textarea>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeVoidModal()">Cancel</button>
+                <button class="btn btn--danger" onclick="confirmVoid()">Void Transaction</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Details Modal -->
+    <div id="transactionDetailsModal" class="modal" style="display: none;">
+        <div class="modal__overlay" onclick="closeTransactionDetailsModal()"></div>
+        <div class="modal__content" style="max-width: 900px;">
+            <div class="modal__header">
+                <h3 class="modal__title">Transaction Details</h3>
+                <button class="modal__close" onclick="closeTransactionDetailsModal()">&times;</button>
+            </div>
+            <div class="modal__body" id="transactionDetailsContent">
+                <div style="text-align: center; padding: 40px;">
+                    <div class="loading-spinner"></div>
+                    Loading transaction details...
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeTransactionDetailsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Creation Modal (ADMIN VERSION - with company selector) -->
+    <div id="accountModal" class="modal" style="display: none;">
+        <div class="modal__overlay" onclick="closeAccountModal()"></div>
+        <div class="modal__content" style="max-width: 600px;">
+            <div class="modal__header">
+                <h3 class="modal__title">➕ Create New Account</h3>
+                <button class="modal__close" onclick="closeAccountModal()">&times;</button>
+            </div>
+            <div class="modal__body">
+                <div style="background: #e8f5e9; padding: 15px; border-radius: 4px; border-left: 4px solid #27ae60; margin-bottom: 20px;">
+                    <strong>ℹ️ Creating an Account (Admin)</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 14px; color: #555;">
+                        As an administrator, you can create accounts for any company. Select the target company first, then fill in account details.
+                    </p>
+                </div>
+
+                <form id="accountForm">
+                    <!-- ADMIN: Company Selector -->
+                    <div class="form-group" style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #f39c12;">
+                        <label style="font-weight: 600; color: #856404;">🏢 Target Company <span style="color: red;">*</span></label>
+                        <select id="accountCompanyId" class="form-control" required style="margin-top: 8px;">
+                            <option value="">-- Select Company --</option>
+                        </select>
+                        <small style="color: #856404; font-size: 12px; display: block; margin-top: 5px;">
+                            ⚠️ Account will be created for the selected company
+                        </small>
+                    </div>
+
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px; margin-bottom: 15px;">
+                        <div class="form-group">
+                            <label>Account Code <span style="color: red;">*</span></label>
+                            <input type="text" id="accountCode" class="form-control" placeholder="e.g., 1001" required>
+                            <small style="color: #7f8c8d; font-size: 12px;">Will be auto-suggested</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Account Name <span style="color: red;">*</span></label>
+                            <input type="text" id="accountName" class="form-control" placeholder="e.g., Cash" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>Account Type <span style="color: red;">*</span></label>
+                        <select id="accountType" class="form-control" onchange="handleAccountTypeChange()" required>
+                            <option value="">-- Select Account Type --</option>
+                            <option value="1">Asset (1000-1999)</option>
+                            <option value="2">Liability (2000-2999)</option>
+                            <option value="3">Equity (3000-3999)</option>
+                            <option value="4">Revenue (4000-4999)</option>
+                            <option value="5">Expense (5000-5999)</option>
+                        </select>
+                    </div>
+
+                    <!-- External Account Checkbox -->
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; background: #fff3cd; padding: 12px; border-radius: 4px; border: 2px solid #f39c12;">
+                            <input type="checkbox" id="isExternalAccount" onchange="handleExternalAccountToggle()" style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
+                            <span style="flex: 1;">
+                                <strong style="color: #856404;">🌐 External Source Account (Simulation)</strong>
+                                <br>
+                                <small style="color: #856404;">Check this to create an external account with UNLIMITED balance for simulation purposes (represents outside world: banks, investors, customers, vendors)</small>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>Description (Optional)</label>
+                        <textarea id="accountDescription" class="form-control" rows="2" placeholder="Brief description of this account"></textarea>
+                    </div>
+
+                    <div id="assetWarning" style="display: none; background: #fff3cd; border: 2px solid #f39c12; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                        <strong style="color: #856404;">⚠️ Asset Account Rule:</strong>
+                        <p style="margin: 8px 0 0 0; color: #856404; font-size: 14px;">
+                            Asset accounts <strong>MUST start at $0.00</strong> (accounting principle). You'll increase the balance by creating transactions (e.g., owner investment, sales, etc.).
+                        </p>
+                    </div>
+
+                    <div id="otherTypeInfo" style="display: none; background: #e3f2fd; border: 2px solid #2196f3; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                        <strong style="color: #1565c0;">ℹ️ Opening Balance:</strong>
+                        <p style="margin: 8px 0; color: #1565c0; font-size: 14px;">
+                            This account will start at $0.00. Use transactions to record the opening balance or ongoing activities.
+                        </p>
+                    </div>
+                </form>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeAccountModal()">Cancel</button>
+                <button class="btn btn--primary" onclick="saveAccount()" style="background: #27ae60;">Create Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Transaction Modal (ADMIN VERSION - with company selector) -->
+    <div id="transactionModal" class="modal" style="display: none;">
+        <div class="modal__overlay" onclick="closeTransactionModal()"></div>
+        <div class="modal__content" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="modal__header" style="flex-shrink: 0; background: white; z-index: 10; border-bottom: 2px solid #ecf0f1;">
+                <h3 class="modal__title" id="transactionModalTitle">📝 Create Transaction (Double-Entry)</h3>
+                <button class="modal__close" onclick="closeTransactionModal()">&times;</button>
+            </div>
+            <div class="modal__body" style="flex: 1; overflow-y: auto; padding: 20px;">
+                <div style="background: #e8f4f8; padding: 18px; border-radius: 6px; border-left: 4px solid #2196f3; margin-bottom: 20px;">
+                    <strong style="color: #1565c0;">📝 DOUBLE-ENTRY TRANSACTION</strong>
+                    <p style="margin: 10px 0 0 0; font-size: 14px; color: #424242; line-height: 1.6;">
+                        This system enforces double-entry bookkeeping. Every transaction requires a minimum of two entries where <strong>Total Debits must equal Total Credits</strong>. The accounting equation (<code>Assets = Liabilities + Equity</code>) will be validated upon posting.
+                    </p>
+                </div>
+
+                <div style="background: #fff9e6; padding: 18px; border-radius: 6px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
+                    <strong style="color: #f57c00;">🌐 EXTERNAL SOURCE ACCOUNTS</strong>
+                    <p style="margin: 10px 0 8px 0; font-size: 14px; color: #424242; line-height: 1.6;">
+                        When establishing accounts from zero balance, utilize <strong>External Source Accounts</strong> to represent capital from outside entities (investors, financial institutions, or customers). This maintains transaction integrity and provides clear audit trails.
+                    </p>
+                    <div style="margin-top: 12px; font-size: 13px; color: #666;">
+                        <strong>Transaction Flow:</strong> External Source <span style="color: #2196f3; font-weight: bold;">→</span> Company Account
+                    </div>
+                    <a href="/external-world-simulator.html" target="_blank" style="color: #2196f3; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block; margin-top: 8px;">
+                        📚 Learn More: External World Simulator →
+                    </a>
+                </div>
+
+                <div style="background: #ffebee; padding: 18px; border-radius: 6px; border-left: 4px solid #e53935; margin-bottom: 25px;">
+                    <strong style="color: #c62828;">⚠️ IMPORTANT NOTICE</strong>
+                    <ul style="margin: 12px 0 0 20px; padding: 0; font-size: 14px; color: #424242; line-height: 1.8;">
+                        <li><strong>Posted transactions are permanent</strong> and cannot be edited or deleted</li>
+                        <li>Account balances will be <strong>updated immediately</strong> upon posting</li>
+                        <li>Transactions appear in <strong>financial reports</strong> and audit trails</li>
+                        <li>System validates accounting integrity before accepting transaction</li>
+                    </ul>
+                    <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.7); border-radius: 4px; font-size: 13px; color: #666;">
+                        💡 <strong>Tip:</strong> Save as "Pending" to review before posting. Pending transactions can be edited or deleted.
+                    </div>
+                </div>
+
+                <form id="transactionForm">
+                    <input type="hidden" id="transactionId">
+
+                    <!-- ADMIN: Company Selector -->
+                    <div class="form-group" style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #f39c12;">
+                        <label style="font-weight: 600; color: #856404;">🏢 Target Company <span style="color: red;">*</span></label>
+                        <select id="transactionCompanyId" class="form-control" required style="margin-top: 8px;" onchange="loadCompanyAccounts()">
+                            <option value="">-- Select Company --</option>
+                        </select>
+                        <small style="color: #856404; font-size: 12px; display: block; margin-top: 5px;">
+                            ⚠️ Transaction will be created for the selected company. Select company first to load its accounts.
+                        </small>
+                    </div>
+
+                    <!-- Transaction Details -->
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div class="form-group">
+                            <label for="transactionDate">Transaction Date <span style="color: red;">*</span></label>
+                            <input type="date" id="transactionDate" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="referenceNumber">Reference Number</label>
+                            <input type="text" id="referenceNumber" class="form-control" placeholder="Optional">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description <span style="color: red;">*</span></label>
+                        <textarea id="description" class="form-control" rows="2" required placeholder="Enter transaction description"></textarea>
+                    </div>
+
+                    <!-- Transaction Lines Section -->
+                    <div style="margin-top: 30px; border-top: 2px solid #ecf0f1; padding-top: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="margin: 0; color: #2c3e50;">Transaction Lines (Double-Entry)</h4>
+                            <button type="button" class="btn btn-secondary" style="background: #27ae60; color: white; border: none;" onclick="addTransactionLine()">+ Add Line</button>
+                        </div>
+
+                        <div id="transactionLinesContainer">
+                            <!-- Transaction lines will be added here -->
+                        </div>
+
+                        <!-- Balance Summary -->
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
+                                <span>Total Debits:</span>
+                                <strong style="color: #27ae60;" id="totalDebits">$0.00</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
+                                <span>Total Credits:</span>
+                                <strong style="color: #e74c3c;" id="totalCredits">$0.00</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 16px; padding-top: 10px; border-top: 2px solid #dee2e6; margin-top: 10px;">
+                                <strong>Difference:</strong>
+                                <strong id="balanceDifference" style="color: #e74c3c;">$0.00</strong>
+                            </div>
+                            <div id="balanceMessage" style="margin-top: 10px; padding: 10px; border-radius: 4px; display: none;"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal__footer" style="flex-shrink: 0; background: white; border-top: 2px solid #ecf0f1; padding: 15px 20px;">
+                <button class="btn btn--secondary" onclick="closeTransactionModal()">Cancel</button>
+                <button class="btn btn--primary" onclick="saveTransaction('pending')" id="savePendingBtn">Save as Pending</button>
+                <button class="btn btn--primary" onclick="saveTransaction('posted')" id="savePostedBtn" style="background: #27ae60;">Save & Post</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Close Period Modal -->
+    <div id="closePeriodModal" class="modal" style="display: none;">
+        <div class="modal__overlay" onclick="closeClosePeriodModal()"></div>
+        <div class="modal__content" style="max-width: 800px;">
+            <div class="modal__header" style="background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%); color: white;">
+                <h3 class="modal__title">📊 Close Accounting Period (Admin)</h3>
+                <button class="modal__close" onclick="closeClosePeriodModal()" style="color: white;">&times;</button>
+            </div>
+            <div class="modal__body">
+                <div style="background: #fff3cd; padding: 15px; border-radius: 4px; border-left: 4px solid #f39c12; margin-bottom: 20px;">
+                    <strong style="color: #856404;">⚠️ Select Company to Close Period</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 14px; color: #555;">
+                        As an administrator, you must select which company you want to run the period-closing process for.
+                    </p>
+                    <select id="closePeriodCompanyId" class="form-control" onchange="fetchPeriodSummary()" style="margin-top: 10px;">
+                        <option value="">-- Select a Company --</option>
+                    </select>
+                </div>
+
+                <div id="periodSummaryContainer" style="display: none;">
+                    <div style="background: #e8f4f8; padding: 18px; border-radius: 6px; border-left: 4px solid #2196f3; margin-bottom: 20px;">
+                        <strong style="color: #1565c0;">PERIOD-END SUMMARY</strong>
+                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #424242; line-height: 1.6;">
+                            This process will calculate the net income (Total Revenue − Total Expenses) and transfer it to <strong>Retained Earnings</strong>. All Revenue and Expense accounts will be reset to zero for the next period.
+                        </p>
+                    </div>
+
+                    <div id="summaryContent" style="text-align: center; padding: 20px;">
+                        <div class="loading-spinner"></div>
+                        <p>Loading period summary...</p>
+                    </div>
+
+                    <div style="background: #ffebee; padding: 18px; border-radius: 6px; border-left: 4px solid #e53935; margin-top: 20px;">
+                        <strong style="color: #c62828;">🚨 THIS ACTION IS PERMANENT</strong>
+                        <ul style="margin: 12px 0 0 20px; padding: 0; font-size: 14px; color: #424242; line-height: 1.8;">
+                            <li>A permanent closing entry transaction will be created and posted.</li>
+                            <li>All Revenue and Expense account balances will become zero.</li>
+                            <li>This cannot be undone. Ensure all transactions for the period are posted and correct.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeClosePeriodModal()">Cancel</button>
+                <button class="btn btn--primary" id="confirmClosePeriodBtn" onclick="confirmClosePeriod()" style="background: #9c27b0; color: white;" disabled>Confirm & Close Period</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmModal" class="modal" style="display: none;">
+        <div class="modal__overlay"></div>
+        <div class="modal__content" style="max-width: 500px;">
+            <div class="modal__header">
+                <h3 class="modal__title" id="confirmTitle">Confirm Action</h3>
+                <button class="modal__close" onclick="closeConfirmModal()">&times;</button>
+            </div>
+            <div class="modal__body">
+                <p id="confirmMessage" style="margin: 0; line-height: 1.6;"></p>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn btn--primary" id="confirmActionBtn" style="background: #e74c3c;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="/admin/assets/css/notifications.css">
+    <script src="/shared/js/notifications.js"></script>
+    <script>
+        console.log('[ADMIN TRANSACTIONS] Starting...');
+
+        let allTransactions = [];
+        let filteredTransactions = [];
+        let currentVoidTransactionId = null;
+        let currentPage = 1;
+        const itemsPerPage = 5;
+
+        // Check authentication
+        fetch('/php/api/auth/session.php')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success || data.data.user.role !== 'admin') {
+                    window.location.replace('/admin/login.html');
+                    return;
+                }
+
+                document.getElementById('username').textContent = data.data.user.full_name;
+                document.getElementById('userEmail').textContent = data.data.user.email;
+
+                loadData();
+            })
+            .catch(error => {
+                console.error('[ADMIN TRANSACTIONS] Session error:', error);
+                window.location.replace('/admin/login.html');
+            });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            fetch('/php/api/auth/logout.php', { method: 'POST' })
+                .then(() => window.location.replace('/admin/login.html'));
+        });
+
+        // Load data
+        function loadData() {
+            console.log('[ADMIN TRANSACTIONS] Loading data...');
+
+            // Show loading state
+            const container = document.getElementById('transactionsContainer');
+            container.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #3498db;"><div class="loading-spinner"></div> Loading transactions...</td></tr>';
+
+            Promise.all([
+                fetch('/php/api/admin/transactions.php?limit=100').then(r => r.json()),
+                fetch('/php/api/companies/list.php').then(r => r.json())
+            ])
+            .then(([transactions, companies]) => {
+                if (transactions.success) {
+                    allTransactions = transactions.data || [];
+                    filteredTransactions = [...allTransactions];
+                    renderTransactions();
+                    updateStatistics();
+                    console.log('[ADMIN TRANSACTIONS] ✅ Transactions loaded successfully');
+                }
+
+                if (companies.success) {
+                    const companySelect = document.getElementById('filterCompany');
+                    // Clear existing options except "All Companies"
+                    companySelect.innerHTML = '<option value="">All Companies</option>';
+                    companies.data.forEach(c => {
+                        const option = document.createElement('option');
+                        option.value = c.company_name;
+                        option.textContent = c.company_name;
+                        companySelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('[ADMIN TRANSACTIONS] Load error:', error);
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">
+                            <strong>Error loading transactions:</strong><br>
+                            ${error.message}<br>
+                            <button onclick="loadData()" style="margin-top: 10px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Try Again
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Render transactions
+        function renderTransactions() {
+            const container = document.getElementById('transactionsContainer');
+
+            if (filteredTransactions.length === 0) {
+                container.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">No transactions found</td></tr>';
+                document.getElementById('paginationControls').style.display = 'none';
+                return;
+            }
+
+            // Pagination logic
+            const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredTransactions.length);
+            const pageItems = filteredTransactions.slice(startIndex, endIndex);
+
+            // Render table rows
+            container.innerHTML = pageItems.map(t => `
+                <tr style="cursor: pointer;" onclick="viewTransactionDetails(${t.id})" title="Click to view details">
+                    <td><code>${t.transaction_number}</code></td>
+                    <td>${t.transaction_date}</td>
+                    <td>${t.company_name || '<em>Unknown</em>'}</td>
+                    <td>${t.description}</td>
+                    <td style="text-align: right;"><strong>$${parseFloat(t.total_amount).toFixed(2)}</strong></td>
+                    <td style="text-align: center;">
+                        <span class="badge" style="background: ${t.status_id == 1 ? '#f39c12' : t.status_id == 2 ? '#27ae60' : '#e74c3c'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">
+                            ${t.status_name}
+                        </span>
+                    </td>
+                    <td>${t.created_by_name || 'Unknown'}</td>
+                    <td style="text-align: center;" onclick="event.stopPropagation()">
+                        ${t.status_id == 2 ? `
+                            <button class="btn btn-secondary" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-size: 13px;"
+                                    onclick="openVoidModal(${t.id}, '${t.transaction_number}')">
+                                Void
+                            </button>
+                        ` : t.status_id == 3 ? '<em style="color: #95a5a6;">Voided</em>' : '<em style="color: #95a5a6;">Pending</em>'}
+                    </td>
+                </tr>
+            `).join('');
+
+            // Update pagination controls
+            document.getElementById('paginationControls').style.display = 'flex';
+            document.getElementById('showingStart').textContent = startIndex + 1;
+            document.getElementById('showingEnd').textContent = endIndex;
+            document.getElementById('showingTotal').textContent = filteredTransactions.length;
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+
+            // Enable/disable buttons
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+        }
+
+        // Pagination functions
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTransactions();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTransactions();
+            }
+        }
+
+        // Update statistics
+        function updateStatistics() {
+            const total = filteredTransactions.length;
+            const pending = filteredTransactions.filter(t => t.status_id == 1).length;
+            const posted = filteredTransactions.filter(t => t.status_id == 2).length;
+            const voided = filteredTransactions.filter(t => t.status_id == 3).length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('postedCount').textContent = posted;
+            document.getElementById('voidedCount').textContent = voided;
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const company = document.getElementById('filterCompany').value;
+            const status = document.getElementById('filterStatus').value;
+            const fromDate = document.getElementById('filterFromDate').value;
+            const toDate = document.getElementById('filterToDate').value;
+
+            filteredTransactions = allTransactions.filter(t => {
+                if (company && t.company_name !== company) return false;
+                if (status && t.status_id != status) return false;
+                if (fromDate && t.transaction_date < fromDate) return false;
+                if (toDate && t.transaction_date > toDate) return false;
+                return true;
+            });
+
+            currentPage = 1; // Reset to first page
+            renderTransactions();
+            updateStatistics();
+        }
+
+        // Reset filters
+        function resetFilters() {
+            document.getElementById('filterCompany').value = '';
+            document.getElementById('filterStatus').value = '';
+            document.getElementById('filterFromDate').value = '';
+            document.getElementById('filterToDate').value = '';
+            filteredTransactions = [...allTransactions];
+            currentPage = 1; // Reset to first page
+            renderTransactions();
+            updateStatistics();
+        }
+
+        // Void modal functions - replaced with custom warning
+        function openVoidModal(transactionId, transactionNumber) {
+            showWarning(
+                '⚠️ Void Transaction',
+                `<strong>WARNING: This is a critical action!</strong><br><br>
+                You are about to void transaction <strong>${transactionNumber}</strong>.<br><br>
+                <strong style="color: #e74c3c;">⚠️ Consequences:</strong>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>All account balances will be reversed</li>
+                    <li>This action cannot be undone</li>
+                    <li>Transaction will be marked as VOIDED permanently</li>
+                    <li>Financial reports will be affected</li>
+                </ul>
+                <div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-left: 4px solid #f39c12; border-radius: 4px;">
+                    <strong>📝 Note:</strong> Please provide a reason for voiding this transaction for audit purposes.
+                </div>
+                <textarea id="voidReasonInput" rows="3" style="width: 100%; margin-top: 15px; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;" placeholder="Enter reason for voiding (required)..."></textarea>`,
+                () => {
+                    const reason = document.getElementById('voidReasonInput')?.value.trim();
+
+                    if (!reason) {
+                        showError('Reason Required', 'Please provide a reason for voiding this transaction.');
+                        return;
+                    }
+
+                    fetch('/php/api/admin/void-transaction.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            transaction_id: transactionId,
+                            void_reason: reason
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showSuccess(
+                                'Transaction Voided',
+                                `Transaction <strong>${transactionNumber}</strong> has been voided successfully.<br><br>Reason: ${reason}`,
+                                () => loadData()
+                            );
+                        } else {
+                            showError('Void Failed', data.message || 'Unable to void transaction');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('[ADMIN TRANSACTIONS] Void error:', error);
+                        showError('Void Failed', error.message);
+                    });
+                }
+            );
+        }
+
+        function closeVoidModal() {
+            // Kept for compatibility
+        }
+
+        function confirmVoid() {
+            // Kept for compatibility
+        }
+
+        // View transaction details
+        async function viewTransactionDetails(transactionId) {
+            const modal = document.getElementById('transactionDetailsModal');
+            const content = document.getElementById('transactionDetailsContent');
+
+            modal.style.display = 'flex';
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div class="loading-spinner" style="display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(52, 152, 219, 0.2); border-top-color: #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <p style="margin-top: 15px; color: #3498db;">Loading transaction details...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/php/api/admin/transaction-details.php?id=${transactionId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const transaction = result.data;
+
+                    const statusColors = {
+                        1: '#f39c12', // Pending
+                        2: '#27ae60', // Posted
+                        3: '#95a5a6'  // Voided
+                    };
+
+                    const statusNames = {
+                        1: 'Pending',
+                        2: 'Posted',
+                        3: 'Voided'
+                    };
+
+                    const canEdit = transaction.status_id == 1; // Only pending can be edited
+
+                    const totalDebits = transaction.lines
+                        .filter(l => l.line_type === 'debit')
+                        .reduce((sum, l) => sum + parseFloat(l.amount), 0);
+                    const totalCredits = transaction.lines
+                        .filter(l => l.line_type === 'credit')
+                        .reduce((sum, l) => sum + parseFloat(l.amount), 0);
+
+                    content.innerHTML = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div>
+                                <strong style="color: #7f8c8d; font-size: 12px;">Transaction Number:</strong><br>
+                                <span style="font-family: monospace; color: #2c3e50; font-weight: 600;">${transaction.transaction_number}</span>
+                            </div>
+                            <div>
+                                <strong style="color: #7f8c8d; font-size: 12px;">Company:</strong><br>
+                                <span style="color: #2c3e50;">${transaction.company_name}</span>
+                            </div>
+                            <div>
+                                <strong style="color: #7f8c8d; font-size: 12px;">Date:</strong><br>
+                                <span style="color: #2c3e50;">${transaction.transaction_date}</span>
+                            </div>
+                            <div>
+                                <strong style="color: #7f8c8d; font-size: 12px;">Status:</strong><br>
+                                <span style="background: ${statusColors[transaction.status_id]}; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                    ${statusNames[transaction.status_id]}
+                                </span>
+                            </div>
+                            <div>
+                                <strong style="color: #7f8c8d; font-size: 12px;">Total Amount:</strong><br>
+                                <span style="color: #3498db; font-size: 18px; font-weight: 700;">$${parseFloat(transaction.total_amount).toFixed(2)}</span>
+                            </div>
+                            ${transaction.created_by_name ? `
+                                <div>
+                                    <strong style="color: #7f8c8d; font-size: 12px;">Created By:</strong><br>
+                                    <span style="color: #2c3e50;">${transaction.created_by_name}</span>
+                                </div>
+                            ` : ''}
+                            ${transaction.posted_at ? `
+                                <div>
+                                    <strong style="color: #7f8c8d; font-size: 12px;">Posted At:</strong><br>
+                                    <span style="color: #2c3e50;">${new Date(transaction.posted_at).toLocaleString()}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        ${transaction.description ? `
+                            <div style="margin-bottom: 20px;">
+                                <strong style="color: #2c3e50; font-size: 14px;">Description:</strong><br>
+                                <p style="margin: 8px 0 0 0; color: #555; line-height: 1.5;">${transaction.description}</p>
+                            </div>
+                        ` : ''}
+
+                        ${transaction.reference_number ? `
+                            <div style="margin-bottom: 20px;">
+                                <strong style="color: #2c3e50; font-size: 14px;">Reference Number:</strong>
+                                <span style="color: #555;"> ${transaction.reference_number}</span>
+                            </div>
+                        ` : ''}
+
+                        <div>
+                            <strong style="color: #2c3e50; font-size: 14px; display: block; margin-bottom: 10px;">Transaction Lines:</strong>
+                            <div style="border: 2px solid #e9ecef; border-radius: 8px; overflow: hidden;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa;">
+                                            <th style="padding: 12px; text-align: left; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e9ecef;">Account</th>
+                                            <th style="padding: 12px; text-align: center; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e9ecef;">Type</th>
+                                            <th style="padding: 12px; text-align: right; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e9ecef;">Debit</th>
+                                            <th style="padding: 12px; text-align: right; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e9ecef;">Credit</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${transaction.lines.map((line, index) => `
+                                            <tr style="${index < transaction.lines.length - 1 ? 'border-bottom: 1px solid #e9ecef;' : ''}">
+                                                <td style="padding: 12px;">
+                                                    <div style="font-weight: 600; color: #2c3e50;">${line.account_name}</div>
+                                                    <div style="font-size: 12px; color: #7f8c8d; font-family: monospace;">${line.account_code}</div>
+                                                </td>
+                                                <td style="padding: 12px; text-align: center;">
+                                                    <span style="text-transform: uppercase; font-weight: 600; color: ${line.line_type === 'debit' ? '#27ae60' : '#e74c3c'}; font-size: 11px; background: ${line.line_type === 'debit' ? '#d4edda' : '#f8d7da'}; padding: 4px 8px; border-radius: 4px;">
+                                                        ${line.line_type}
+                                                    </span>
+                                                </td>
+                                                <td style="padding: 12px; text-align: right; color: #27ae60; font-weight: 700; font-size: 15px;">
+                                                    ${line.line_type === 'debit' ? '$' + parseFloat(line.amount).toFixed(2) : '-'}
+                                                </td>
+                                                <td style="padding: 12px; text-align: right; color: #e74c3c; font-weight: 700; font-size: 15px;">
+                                                    ${line.line_type === 'credit' ? '$' + parseFloat(line.amount).toFixed(2) : '-'}
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style="background: #f8f9fa; border-top: 2px solid #e9ecef;">
+                                            <td colspan="2" style="padding: 12px; text-align: right; font-weight: 700; color: #2c3e50;">TOTAL:</td>
+                                            <td style="padding: 12px; text-align: right; color: #27ae60; font-weight: 700; font-size: 15px;">
+                                                $${totalDebits.toFixed(2)}
+                                            </td>
+                                            <td style="padding: 12px; text-align: right; color: #e74c3c; font-weight: 700; font-size: 15px;">
+                                                $${totalCredits.toFixed(2)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+
+                        ${canEdit ? `
+                            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e9ecef; display: flex; gap: 10px; justify-content: flex-end;">
+                                <button class="btn btn-secondary" onclick="closeTransactionDetailsModal(); deleteTransactionById(${transaction.id}, '${transaction.transaction_number}');" style="background: #e74c3c; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                    Delete
+                                </button>
+                                <button class="btn btn-secondary" onclick="closeTransactionDetailsModal(); editTransactionById(${transaction.id});" style="background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                    Edit
+                                </button>
+                                <button class="btn btn-secondary" onclick="closeTransactionDetailsModal(); postTransactionById(${transaction.id});" style="background: #27ae60; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                    Post Transaction
+                                </button>
+                            </div>
+                        ` : ''}
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #e74c3c;">
+                            <strong>Error loading transaction details:</strong><br>
+                            ${result.message}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('[TRANSACTIONS] Transaction details error:', error);
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #e74c3c;">
+                        <strong>Error:</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function closeTransactionDetailsModal() {
+            document.getElementById('transactionDetailsModal').style.display = 'none';
+        }
+
+        // ==================== CUSTOM CONFIRMATION MODAL ====================
+
+        let confirmCallback = null;
+
+        function showConfirmModal(title, message, onConfirm, buttonText = 'Confirm', buttonColor = '#e74c3c') {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').innerHTML = message;
+
+            const confirmBtn = document.getElementById('confirmActionBtn');
+            confirmBtn.textContent = buttonText;
+            confirmBtn.style.background = buttonColor;
+
+            confirmCallback = onConfirm;
+
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            confirmCallback = null;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const confirmBtn = document.getElementById('confirmActionBtn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', function() {
+                    if (confirmCallback) {
+                        confirmCallback();
+                    }
+                    closeConfirmModal();
+                });
+            }
+        });
+
+        // ==================== TRANSACTION ACTIONS ====================
+
+        // Delete transaction (pending only)
+        function deleteTransactionById(id, transactionNumber) {
+            showConfirmModal(
+                'Delete Transaction',
+                `Are you sure you want to <strong>DELETE</strong> transaction <code>${transactionNumber}</code>?<br><br>This action cannot be undone!`,
+                () => {
+                    console.log('[ADMIN] Deleting transaction:', id);
+
+                    fetch('/php/api/admin/transactions/delete.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: id })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Notify.success(`Transaction ${transactionNumber} deleted successfully!`);
+                            loadData(); // Reload transactions
+                        } else {
+                            Notify.error('Delete failed', data.message || 'Unknown error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('[ADMIN] Delete error:', error);
+                        Notify.error('Error deleting transaction', error.message);
+                    });
+                },
+                'Delete',
+                '#e74c3c'
+            );
+        }
+
+        // Post transaction (pending only)
+        function postTransactionById(id) {
+            showConfirmModal(
+                'Post Transaction',
+                'Are you sure you want to <strong>POST</strong> this transaction?<br><br>' +
+                'This will:<br>' +
+                '• Update account balances<br>' +
+                '• Lock the transaction (no more edits)<br>' +
+                '• This action cannot be undone!',
+                () => {
+                    console.log('[ADMIN] Posting transaction:', id);
+
+                    fetch('/php/api/admin/transactions/post.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: id })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Notify.success('Transaction posted successfully!');
+                            loadData(); // Reload transactions
+                        } else {
+                            Notify.error('Post failed', data.message || 'Unknown error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('[ADMIN] Post error:', error);
+                        Notify.error('Error posting transaction', error.message);
+                    });
+                },
+                'Post Transaction',
+                '#27ae60'
+            );
+        }
+
+        // Edit transaction (pending only)
+        async function editTransactionById(id) {
+            console.log('[ADMIN] Editing transaction:', id);
+
+            try {
+                const response = await fetch(`/php/api/admin/transaction-details.php?id=${id}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const transaction = result.data;
+
+                    // Can only edit pending
+                    if (transaction.status_id != 1) {
+                        Notify.warning('Cannot edit this transaction', 'Only pending transactions can be edited.');
+                        return;
+                    }
+
+                    // Open transaction modal in edit mode
+                    openTransactionModalForEdit(transaction);
+                } else {
+                    Notify.error('Error loading transaction', result.message);
+                }
+            } catch (error) {
+                console.error('[ADMIN] Edit error:', error);
+                Notify.error('Error loading transaction', error.message);
+            }
+        }
+
+        // Open transaction modal for editing
+        function openTransactionModalForEdit(transaction) {
+            console.log('[ADMIN] Opening modal for editing...');
+
+            // Reset form
+            document.getElementById('transactionForm').reset();
+            document.getElementById('transactionId').value = transaction.id;
+            document.getElementById('transactionModalTitle').textContent = '✏️ Edit Transaction';
+
+            // Fill form
+            document.getElementById('transactionCompanyId').value = transaction.company_id;
+            document.getElementById('transactionDate').value = transaction.transaction_date;
+            document.getElementById('description').value = transaction.description || '';
+            document.getElementById('referenceNumber').value = transaction.reference_number || '';
+
+            // Load accounts for the company
+            loadCompanyAccounts();
+
+            // Wait for accounts to load, then populate lines
+            setTimeout(() => {
+                // Clear transaction lines
+                transactionLines = [];
+                lineCounter = 0;
+                document.getElementById('transactionLinesContainer').innerHTML = '';
+
+                // Add lines from transaction
+                transaction.lines.forEach(line => {
+                    addTransactionLine();
+                    const lineId = lineCounter - 1;
+
+                    // Set values
+                    document.getElementById(`account-${lineId}`).value = line.account_id;
+                    document.getElementById(`type-${lineId}`).value = line.line_type;
+                    document.getElementById(`amount-${lineId}`).value = parseFloat(line.amount);
+                });
+
+                // Update balance display
+                calculateBalance();
+            }, 500); // Small delay to let accounts load
+
+            // Show modal
+            document.getElementById('transactionModal').style.display = 'flex';
+
+            console.log('[ADMIN] ✅ Transaction modal opened for editing');
+        }
+
+        // ==================== ACCOUNT CREATION MODAL ====================
+
+        let allCompanies = [];
+        let allAccounts = [];
+        let transactionLines = [];
+        let lineCounter = 0;
+
+        const ACCOUNT_TYPES = {
+            1: 'Asset',
+            2: 'Liability',
+            3: 'Equity',
+            4: 'Revenue',
+            5: 'Expense'
+        };
+
+        const CODE_RANGES = {
+            1: { start: 1000, end: 1999, name: 'Assets' },
+            2: { start: 2000, end: 2999, name: 'Liabilities' },
+            3: { start: 3000, end: 3999, name: 'Equity' },
+            4: { start: 4000, end: 4999, name: 'Revenue' },
+            5: { start: 5000, end: 5999, name: 'Expenses' }
+        };
+
+        // Load companies list
+        function loadCompanies() {
+            fetch('/php/api/companies/list.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        allCompanies = data.data.filter(c => c.is_active == 1);
+                        populateCompanySelectors();
+                    }
+                })
+                .catch(error => console.error('[ADMIN] Error loading companies:', error));
+        }
+
+        // Populate company dropdowns
+        function populateCompanySelectors() {
+            const accountCompanySelect = document.getElementById('accountCompanyId');
+            const transactionCompanySelect = document.getElementById('transactionCompanyId');
+            const closePeriodCompanySelect = document.getElementById('closePeriodCompanyId');
+
+            const options = allCompanies.map(c =>
+                `<option value="${c.id}">${c.company_name}</option>`
+            ).join('');
+
+            accountCompanySelect.innerHTML = '<option value="">-- Select Company --</option>' + options;
+            transactionCompanySelect.innerHTML = '<option value="">-- Select Company --</option>' + options;
+            if (closePeriodCompanySelect) {
+                closePeriodCompanySelect.innerHTML = '<option value="">-- Select a Company --</option>' + options;
+            }
+        }
+
+        // Open account creation modal
+        function openAccountModal() {
+            console.log('[ADMIN] Opening account creation modal...');
+
+            // Load companies if not loaded
+            if (allCompanies.length === 0) {
+                loadCompanies();
+            }
+
+            // Reset form
+            document.getElementById('accountForm').reset();
+            document.getElementById('assetWarning').style.display = 'none';
+            document.getElementById('otherTypeInfo').style.display = 'none';
+
+            // Show modal
+            document.getElementById('accountModal').style.display = 'flex';
+
+            console.log('[ADMIN] ✅ Account modal opened');
+        }
+
+        // Close account modal
+        function closeAccountModal() {
+            document.getElementById('accountModal').style.display = 'none';
+        }
+
+        // Handle account type change
+        function handleAccountTypeChange() {
+            const typeSelect = document.getElementById('accountType');
+            const codeInput = document.getElementById('accountCode');
+            const assetWarning = document.getElementById('assetWarning');
+            const otherTypeInfo = document.getElementById('otherTypeInfo');
+            const typeId = parseInt(typeSelect.value);
+
+            if (!typeId) {
+                assetWarning.style.display = 'none';
+                otherTypeInfo.style.display = 'none';
+                return;
+            }
+
+            // Show asset warning if Asset type selected
+            if (typeId === 1) {
+                assetWarning.style.display = 'block';
+                otherTypeInfo.style.display = 'none';
+            } else {
+                assetWarning.style.display = 'none';
+                otherTypeInfo.style.display = 'block';
+            }
+
+            // Suggest next available code
+            const range = CODE_RANGES[typeId];
+            const companyId = document.getElementById('accountCompanyId').value;
+
+            if (!companyId) {
+                codeInput.value = range.start + 1;
+                return;
+            }
+
+            // Get existing codes for this company and type
+            const existingCodes = allAccounts
+                .filter(a => a.company_id == companyId && a.account_type_id === typeId)
+                .map(a => parseInt(a.account_code))
+                .sort((a, b) => a - b);
+
+            let suggestedCode = range.start + 1;
+
+            for (let code of existingCodes) {
+                if (code === suggestedCode) {
+                    suggestedCode++;
+                } else if (code > suggestedCode) {
+                    break;
+                }
+            }
+
+            codeInput.value = suggestedCode;
+        }
+
+        // Handle external account toggle (admin version)
+        function handleExternalAccountToggle() {
+            const isExternal = document.getElementById('isExternalAccount').checked;
+            const codeInput = document.getElementById('accountCode');
+            const typeSelect = document.getElementById('accountType');
+            const assetWarning = document.getElementById('assetWarning');
+            const otherTypeInfo = document.getElementById('otherTypeInfo');
+
+            if (isExternal) {
+                // External account - change code to EXT-X format
+                const typeId = parseInt(typeSelect.value);
+                if (typeId) {
+                    const typeNames = {1: 'ASSET', 2: 'LIABILITY', 3: 'EQUITY', 4: 'REVENUE', 5: 'EXPENSE'};
+                    codeInput.value = `EXT-${typeNames[typeId]}`;
+                    codeInput.readOnly = true;
+                    codeInput.style.background = '#fff3cd';
+                }
+                // Hide normal warnings
+                assetWarning.style.display = 'none';
+                otherTypeInfo.style.display = 'none';
+            } else {
+                // Normal account - restore normal behavior
+                codeInput.readOnly = false;
+                codeInput.style.background = '';
+                handleAccountTypeChange(); // Re-suggest normal code
+            }
+        }
+
+        // Save account (admin version - with company_id)
+        async function saveAccount() {
+            console.log('[ADMIN] Saving account...');
+
+            const companyId = document.getElementById('accountCompanyId').value;
+            const code = document.getElementById('accountCode').value.trim();
+            const name = document.getElementById('accountName').value.trim();
+            const typeId = document.getElementById('accountType').value;
+            const description = document.getElementById('accountDescription').value.trim();
+            const isExternal = document.getElementById('isExternalAccount').checked;
+
+            if (!companyId) {
+                Notify.error('Please select a company!');
+                return;
+            }
+
+            if (!code || !name || !typeId) {
+                Notify.error('Please fill in all required fields!');
+                return;
+            }
+
+            // Skip code validation for external accounts (they use EXT-X format)
+            if (!isExternal) {
+                // Validate code is within range for normal accounts
+                const range = CODE_RANGES[typeId];
+                const codeNum = parseInt(code);
+                if (codeNum < range.start || codeNum > range.end) {
+                    Notify.error(`Account code must be between ${range.start} and ${range.end} for ${ACCOUNT_TYPES[typeId]} accounts!`);
+                    return;
+                }
+            }
+
+            const accountData = {
+                company_id: parseInt(companyId),
+                account_code: code,
+                account_name: name,
+                account_type_id: parseInt(typeId),
+                description: description,
+                opening_balance: isExternal ? 999999999 : 0, // External = unlimited, Normal = 0
+                is_system_account: isExternal ? 1 : 0, // Mark as external if checkbox checked
+                is_active: 1
+            };
+
+            console.log('[ADMIN] Account data:', accountData);
+
+            try {
+                const response = await fetch('/php/api/admin/accounts/create.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(accountData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Notify.success(`Account "${name}" (${code}) created successfully!`);
+                    closeAccountModal();
+                    loadData(); // Reload page data
+                } else {
+                    Notify.error('Failed to create account', result.message || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('[ADMIN] Save account error:', error);
+                Notify.error('Error creating account. Please try again.', error.message);
+            }
+        }
+
+        // ==================== TRANSACTION CREATION MODAL ====================
+
+        // Open transaction modal
+        function openTransactionModal() {
+            console.log('[ADMIN] Opening transaction modal...');
+
+            // Load companies if not loaded
+            if (allCompanies.length === 0) {
+                loadCompanies();
+            }
+
+            // Reset form
+            document.getElementById('transactionForm').reset();
+            document.getElementById('transactionId').value = '';
+            document.getElementById('transactionModalTitle').textContent = '📝 Create Transaction (Double-Entry)';
+
+            // Set default date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('transactionDate').value = today;
+
+            // Clear transaction lines
+            transactionLines = [];
+            lineCounter = 0;
+            document.getElementById('transactionLinesContainer').innerHTML = '';
+
+            // Add two default lines
+            addTransactionLine();
+            addTransactionLine();
+
+            // Show modal
+            document.getElementById('transactionModal').style.display = 'flex';
+
+            console.log('[ADMIN] ✅ Transaction modal opened');
+        }
+
+        // Close transaction modal
+        function closeTransactionModal() {
+            document.getElementById('transactionModal').style.display = 'none';
+        }
+
+        // Load accounts for selected company
+        function loadCompanyAccounts() {
+            const companyId = document.getElementById('transactionCompanyId').value;
+
+            if (!companyId) {
+                allAccounts = [];
+                return;
+            }
+
+            console.log('[ADMIN] Loading accounts for company:', companyId);
+
+            fetch(`/php/api/admin/accounts/list.php?company_id=${companyId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        allAccounts = data.data || [];
+                        console.log('[ADMIN] ✅ Accounts loaded:', allAccounts.length);
+
+                        // Update all account selectors
+                        transactionLines.forEach(line => {
+                            const select = document.getElementById(`account-${line.id}`);
+                            if (select) {
+                                select.innerHTML = '<option value="">-- Select Account --</option>' + renderAccountOptions();
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('[ADMIN] Error loading accounts:', error);
+                    Notify.error('Error loading accounts', error.message);
+                });
+        }
+
+        // Add transaction line
+        function addTransactionLine() {
+            const lineId = lineCounter++;
+            const container = document.getElementById('transactionLinesContainer');
+
+            const lineHtml = `
+                <div class="transaction-line" id="line-${lineId}" style="padding: 15px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="font-weight: 600; color: #2c3e50;">Line ${lineId + 1}</span>
+                        <button type="button" onclick="removeTransactionLine(${lineId})" style="background: #e74c3c; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Remove</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label>Account <span style="color: red;">*</span></label>
+                            <select class="form-control" id="account-${lineId}" onchange="updateAccountAvailability(); updateLineHelp(${lineId}); calculateBalance();" required>
+                                <option value="">-- Select Account --</option>
+                                ${renderAccountOptions()}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Type <span style="color: red;">*</span></label>
+                            <select class="form-control" id="type-${lineId}" onchange="updateLineHelp(${lineId}); calculateBalance();" required style="font-family: monospace; font-weight: bold;">
+                                <option value="">-- Select --</option>
+                                <option value="debit">⬅️ DEBIT</option>
+                                <option value="credit">➡️ CREDIT</option>
+                            </select>
+                            <div id="help-${lineId}" style="margin-top: 5px; padding: 8px; border-radius: 4px; font-size: 12px; display: none;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Amount <span style="color: red;">*</span></label>
+                            <input type="number" class="form-control" id="amount-${lineId}" step="0.01" min="0" placeholder="0.00" onchange="calculateBalance()" required>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', lineHtml);
+            transactionLines.push({ id: lineId });
+            updateAccountAvailability();
+        }
+
+        // Remove transaction line
+        function removeTransactionLine(lineId) {
+            const lineElement = document.getElementById(`line-${lineId}`);
+            if (lineElement) {
+                lineElement.remove();
+            }
+            transactionLines = transactionLines.filter(l => l.id !== lineId);
+            updateAccountAvailability();
+            calculateBalance();
+        }
+
+        // Update account availability across all lines
+        function updateAccountAvailability() {
+            const selectedAccounts = new Set();
+            transactionLines.forEach(line => {
+                const select = document.getElementById(`account-${line.id}`);
+                if (select && select.value) {
+                    selectedAccounts.add(select.value);
+                }
+            });
+
+            transactionLines.forEach(line => {
+                const select = document.getElementById(`account-${line.id}`);
+                if (!select) return;
+
+                const currentValue = select.value;
+
+                Array.from(select.options).forEach(option => {
+                    if (option.value === '') return;
+
+                    if (selectedAccounts.has(option.value) && option.value !== currentValue) {
+                        option.disabled = true;
+                        option.style.color = '#95a5a6';
+                    } else {
+                        option.disabled = false;
+                        option.style.color = '';
+                    }
+                });
+            });
+        }
+
+        // Render account options
+        function renderAccountOptions() {
+            if (allAccounts.length === 0) {
+                return '<option value="" disabled>Select company first to load accounts</option>';
+            }
+
+            const grouped = {};
+            const externalAccounts = [];
+
+            allAccounts.forEach(account => {
+                if (account.is_system_account) {
+                    externalAccounts.push(account);
+                } else {
+                    if (!grouped[account.account_type_id]) {
+                        grouped[account.account_type_id] = [];
+                    }
+                    grouped[account.account_type_id].push(account);
+                }
+            });
+
+            let html = '';
+
+            if (externalAccounts.length > 0) {
+                html += `<optgroup label="🌐 EXTERNAL SOURCES">`;
+                externalAccounts.forEach(account => {
+                    const balance = parseFloat(account.current_balance || 0).toFixed(2);
+                    html += `<option value="${account.id}">${account.account_name} [$${balance}]</option>`;
+                });
+                html += `</optgroup>`;
+            }
+
+            [1, 2, 3, 4, 5].forEach(typeId => {
+                if (grouped[typeId] && grouped[typeId].length > 0) {
+                    html += `<optgroup label="💼 ${ACCOUNT_TYPES[typeId].toUpperCase()}">`;
+                    grouped[typeId].forEach(account => {
+                        const balance = parseFloat(account.current_balance || 0).toFixed(2);
+                        html += `<option value="${account.id}">${account.account_code} - ${account.account_name} [$${balance}]</option>`;
+                    });
+                    html += `</optgroup>`;
+                }
+            });
+
+            return html;
+        }
+
+        // Update line help text
+        function updateLineHelp(lineId) {
+            const accountSelect = document.getElementById(`account-${lineId}`);
+            const typeSelect = document.getElementById(`type-${lineId}`);
+            const helpDiv = document.getElementById(`help-${lineId}`);
+
+            if (!accountSelect || !typeSelect || !helpDiv) return;
+
+            const accountId = accountSelect.value;
+            const type = typeSelect.value;
+
+            if (!accountId || !type) {
+                helpDiv.style.display = 'none';
+                return;
+            }
+
+            const account = allAccounts.find(a => a.id == accountId);
+            if (!account) {
+                helpDiv.style.display = 'none';
+                return;
+            }
+
+            const accountType = account.account_type_name || '';
+            let message = '';
+            let bgColor = '';
+
+            if (accountType === 'Asset') {
+                message = type === 'debit' ? '✅ Increase asset' : '→ Decrease asset';
+                bgColor = type === 'debit' ? '#d4edda' : '#d1ecf1';
+            } else if (accountType === 'Liability') {
+                message = type === 'credit' ? '✅ Increase liability' : '→ Decrease liability';
+                bgColor = type === 'credit' ? '#d4edda' : '#d1ecf1';
+            } else if (accountType === 'Equity') {
+                message = type === 'credit' ? '✅ Increase equity' : '→ Decrease equity';
+                bgColor = type === 'credit' ? '#d4edda' : '#d1ecf1';
+            } else if (accountType === 'Revenue') {
+                message = type === 'credit' ? '✅ Increase revenue' : '→ Decrease revenue';
+                bgColor = type === 'credit' ? '#d4edda' : '#d1ecf1';
+            } else if (accountType === 'Expense') {
+                message = type === 'debit' ? '✅ Increase expense' : '→ Decrease expense';
+                bgColor = type === 'debit' ? '#d4edda' : '#d1ecf1';
+            }
+
+            helpDiv.textContent = message;
+            helpDiv.style.backgroundColor = bgColor;
+            helpDiv.style.display = 'block';
+        }
+
+        // Calculate balance
+        function calculateBalance() {
+            let totalDebits = 0;
+            let totalCredits = 0;
+
+            transactionLines.forEach(line => {
+                const type = document.getElementById(`type-${line.id}`)?.value;
+                const amount = parseFloat(document.getElementById(`amount-${line.id}`)?.value || 0);
+
+                if (type === 'debit') {
+                    totalDebits += amount;
+                } else if (type === 'credit') {
+                    totalCredits += amount;
+                }
+            });
+
+            const difference = totalDebits - totalCredits;
+
+            document.getElementById('totalDebits').textContent = '$' + totalDebits.toFixed(2);
+            document.getElementById('totalCredits').textContent = '$' + totalCredits.toFixed(2);
+            document.getElementById('balanceDifference').textContent = '$' + Math.abs(difference).toFixed(2);
+
+            const balanceMessage = document.getElementById('balanceMessage');
+            const differenceElement = document.getElementById('balanceDifference');
+
+            if (difference === 0 && totalDebits > 0) {
+                differenceElement.style.color = '#27ae60';
+                balanceMessage.className = 'balance-message success';
+                balanceMessage.textContent = '✅ Transaction is balanced! Ready to save.';
+                balanceMessage.style.display = 'block';
+                balanceMessage.style.background = '#d4edda';
+                balanceMessage.style.color = '#155724';
+                return true;
+            } else if (difference !== 0 && (totalDebits > 0 || totalCredits > 0)) {
+                differenceElement.style.color = '#e74c3c';
+                balanceMessage.className = 'balance-message error';
+                balanceMessage.textContent = '❌ Transaction is NOT balanced! Debits must equal Credits.';
+                balanceMessage.style.display = 'block';
+                balanceMessage.style.background = '#f8d7da';
+                balanceMessage.style.color = '#721c24';
+                return false;
+            } else {
+                balanceMessage.style.display = 'none';
+                differenceElement.style.color = '#95a5a6';
+                return false;
+            }
+        }
+
+        // Save transaction (admin version - with company_id)
+        async function saveTransaction(status) {
+            console.log(`[ADMIN] Saving transaction as ${status}...`);
+
+            if (!calculateBalance()) {
+                Notify.error('Cannot save unbalanced transaction!', 'Debits must equal Credits.');
+                return;
+            }
+
+            const companyId = document.getElementById('transactionCompanyId').value;
+            const transactionDate = document.getElementById('transactionDate').value;
+            const description = document.getElementById('description').value;
+            const referenceNumber = document.getElementById('referenceNumber').value;
+            const transactionId = document.getElementById('transactionId').value;
+
+            if (!companyId) {
+                Notify.error('Please select a company!');
+                return;
+            }
+
+            if (!transactionDate || !description) {
+                Notify.error('Please fill in all required fields!');
+                return;
+            }
+
+            // Gather transaction lines
+            const lines = [];
+            const usedAccounts = new Set();
+
+            for (let line of transactionLines) {
+                const accountSelect = document.getElementById(`account-${line.id}`);
+                const type = document.getElementById(`type-${line.id}`).value;
+                const amount = document.getElementById(`amount-${line.id}`).value;
+
+                if (!accountSelect.value || !type || !amount) {
+                    Notify.error(`Please complete all fields in Line ${line.id + 1}`);
+                    return;
+                }
+
+                const accountId = parseInt(accountSelect.value);
+
+                if (usedAccounts.has(accountId)) {
+                    const accountName = accountSelect.options[accountSelect.selectedIndex].text;
+                    Notify.error(
+                        `Cannot use the same account twice!`,
+                        `Account "${accountName}" is already used in this transaction.`
+                    );
+                    return;
+                }
+
+                usedAccounts.add(accountId);
+
+                lines.push({
+                    account_id: accountId,
+                    line_type: type,
+                    amount: parseFloat(amount)
+                });
+            }
+
+            const transactionData = {
+                company_id: parseInt(companyId),
+                transaction_date: transactionDate,
+                description: description,
+                reference_number: referenceNumber || null,
+                status: status,
+                lines: lines
+            };
+
+            // Add ID if editing
+            if (transactionId) {
+                transactionData.id = parseInt(transactionId);
+            }
+
+            console.log('[ADMIN] Transaction data:', transactionData);
+
+            // Show loading
+            const savePendingBtn = document.getElementById('savePendingBtn');
+            const savePostedBtn = document.getElementById('savePostedBtn');
+            const originalPendingText = savePendingBtn?.textContent || 'Save as Pending';
+            const originalPostedText = savePostedBtn?.textContent || 'Save & Post';
+
+            if (savePendingBtn) {
+                savePendingBtn.textContent = 'Saving...';
+                savePendingBtn.disabled = true;
+            }
+            if (savePostedBtn) {
+                savePostedBtn.textContent = 'Saving...';
+                savePostedBtn.disabled = true;
+            }
+
+            try {
+                // Choose API endpoint based on create or update
+                const isEditing = transactionId && transactionId !== '';
+                const apiUrl = isEditing
+                    ? '/php/api/admin/transactions/update.php'
+                    : '/php/api/admin/transactions/create.php';
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transactionData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const resultText = await response.text();
+                try {
+                    const result = JSON.parse(resultText);
+                    if (result.success) {
+                        const action = isEditing
+                            ? 'updated'
+                            : (status === 'posted' ? 'posted' : 'saved as pending');
+                        Notify.success(`Transaction ${action} successfully!`);
+                        closeTransactionModal();
+                        loadData(); // Reload transactions
+                    } else {
+                        Notify.error('Failed to save transaction', result.message || 'Unknown error');
+                    }
+                } catch (e) {
+                    console.error('[ADMIN] Error parsing JSON:', e);
+                    console.error('[ADMIN] Received text:', resultText);
+                    Notify.error('Error saving transaction. Please try again.', 'Invalid response from server. Check console for details.');
+                }
+            } catch (error) {
+                console.error('[ADMIN] Save transaction error:', error);
+                Notify.error('Error saving transaction. Please try again.', error.message);
+            } finally {
+                if (savePendingBtn) {
+                    savePendingBtn.textContent = originalPendingText;
+                    savePendingBtn.disabled = false;
+                }
+                if (savePostedBtn) {
+                    savePostedBtn.textContent = originalPostedText;
+                    savePostedBtn.disabled = false;
+                }
+            }
+        }
+
+        // ==================== CLOSE PERIOD MODAL ====================
+
+        // Open close period modal
+        async function openClosePeriodModal() {
+            console.log('[ADMIN] Opening close period modal...');
+
+            // Load companies if not loaded
+            if (allCompanies.length === 0) {
+                try {
+                    const response = await fetch('/php/api/companies/list.php');
+                    const result = await response.json();
+                    if (result.success) {
+                        allCompanies = result.data.filter(c => c.is_active == 1);
+                        populateCompanySelectors();
+                    } else {
+                        Notify.error('Failed to load companies', result.message);
+                        return;
+                    }
+                } catch (error) {
+                    Notify.error('Error loading companies', error.message);
+                    return;
+                }
+            }
+
+            // Reset form
+            document.getElementById('closePeriodCompanyId').value = '';
+            document.getElementById('periodSummaryContainer').style.display = 'none';
+            document.getElementById('summaryContent').innerHTML = '<div class="loading-spinner"></div> Loading period summary...';
+
+            // Show modal
+            document.getElementById('closePeriodModal').style.display = 'flex';
+
+            console.log('[ADMIN] ✅ Close period modal opened');
+        }
+
+        // Close close period modal
+        function closeClosePeriodModal() {
+            document.getElementById('closePeriodModal').style.display = 'none';
+        }
+
+        // Fetch period summary for the selected company
+        async function fetchPeriodSummary() {
+            const companyId = document.getElementById('closePeriodCompanyId').value;
+            const summaryContainer = document.getElementById('periodSummaryContainer');
+            const summaryContent = document.getElementById('summaryContent');
+            const confirmBtn = document.getElementById('confirmClosePeriodBtn');
+
+            if (!companyId) {
+                summaryContainer.style.display = 'none';
+                confirmBtn.disabled = true;
+                return;
+            }
+
+            console.log('[ADMIN] Fetching period summary for company:', companyId);
+
+            // Show loading
+            summaryContainer.style.display = 'block';
+            summaryContent.innerHTML = '<div class="loading-spinner"></div> Loading period summary...';
+            confirmBtn.disabled = true;
+
+            try {
+                // Fetch accounts for the selected company
+                const response = await fetch(`/php/api/admin/accounts/list.php?company_id=${companyId}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to load accounts');
+                }
+
+                const accounts = result.data || [];
+
+                // Get all revenue accounts (exclude external/system accounts)
+                const revenueAccounts = accounts.filter(a => a.account_type_id == 4 && a.is_system_account != 1);
+                const totalRevenue = revenueAccounts.reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0);
+
+                // Get all expense accounts (exclude external/system accounts)
+                const expenseAccounts = accounts.filter(a => a.account_type_id == 5 && a.is_system_account != 1);
+                const totalExpenses = expenseAccounts.reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0);
+
+                // Calculate net income
+                // Revenue is negative (credit balance), Expenses are positive (debit balance)
+                const netIncome = Math.abs(totalRevenue) - Math.abs(totalExpenses);
+                const isProfit = netIncome >= 0;
+
+                // Find Retained Earnings account
+                const retainedEarnings = accounts.find(a =>
+                    a.account_type_id == 3 &&
+                    (a.account_name.toLowerCase().includes('retained') ||
+                     a.account_name.toLowerCase().includes('earnings'))
+                );
+
+                // Check if there are pending transactions
+                const txResponse = await fetch(`/php/api/admin/transactions.php?company_id=${companyId}&status=1`);
+                const txResult = await txResponse.json();
+                const hasPendingTransactions = txResult.success && (txResult.data || []).length > 0;
+
+                // Generate summary HTML
+                summaryContent.innerHTML = `
+                    <div style="background: white; border-radius: 8px; padding: 25px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                            <div style="background: #e8f5e9; padding: 15px; border-radius: 6px; border-left: 4px solid #27ae60;">
+                                <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Total Revenue</div>
+                                <div style="font-size: 24px; font-weight: 700; color: #27ae60;">$${Math.abs(totalRevenue).toFixed(2)}</div>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">${revenueAccounts.length} account(s)</div>
+                            </div>
+
+                            <div style="background: #ffebee; padding: 15px; border-radius: 6px; border-left: 4px solid #e74c3c;">
+                                <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Total Expenses</div>
+                                <div style="font-size: 24px; font-weight: 700; color: #e74c3c;">$${Math.abs(totalExpenses).toFixed(2)}</div>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">${expenseAccounts.length} account(s)</div>
+                            </div>
+                        </div>
+
+                        <div style="background: ${isProfit ? '#e3f2fd' : '#fff3e0'}; padding: 20px; border-radius: 6px; border-left: 4px solid ${isProfit ? '#2196f3' : '#ff9800'}; margin-bottom: 20px;">
+                            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Net ${isProfit ? 'Profit' : 'Loss'}</div>
+                            <div style="font-size: 32px; font-weight: 700; color: ${isProfit ? '#2196f3' : '#ff9800'};">
+                                $${Math.abs(netIncome).toFixed(2)}
+                            </div>
+                            <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                ${isProfit ? '↑ Profit increases Equity' : '↓ Loss decreases Equity'}
+                            </div>
+                        </div>
+
+                        ${!retainedEarnings ? `
+                            <div style="background: #ffebee; padding: 15px; border-radius: 6px; border-left: 4px solid #e74c3c; margin-bottom: 15px;">
+                                <strong style="color: #c62828;">⚠️ Retained Earnings Account Missing</strong>
+                                <p style="margin: 8px 0 0 0; color: #c62828; font-size: 13px;">
+                                    Cannot close period without a Retained Earnings equity account. Please create one first.
+                                </p>
+                            </div>
+                        ` : ''}
+
+                        ${hasPendingTransactions ? `
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #f39c12; margin-bottom: 15px;">
+                                <strong style="color: #856404;">⚠️ Warning: Pending Transactions</strong>
+                                <p style="margin: 8px 0 0 0; color: #856404; font-size: 13px;">
+                                    This company has pending transactions. Consider posting or voiding them before closing the period.
+                                </p>
+                            </div>
+                        ` : ''}
+
+                        ${Math.abs(totalRevenue) < 0.01 && Math.abs(totalExpenses) < 0.01 ? `
+                            <div style="background: #e8f5e9; padding: 15px; border-radius: 6px; border-left: 4px solid #27ae60;">
+                                <strong style="color: #2e7d32;">ℹ️ No Closing Entries Needed</strong>
+                                <p style="margin: 8px 0 0 0; color: #2e7d32; font-size: 13px;">
+                                    All Revenue and Expense accounts are already at zero.
+                                </p>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                // Enable/disable confirm button based on conditions
+                if (retainedEarnings && (Math.abs(totalRevenue) >= 0.01 || Math.abs(totalExpenses) >= 0.01)) {
+                    confirmBtn.disabled = false;
+                } else {
+                    confirmBtn.disabled = true;
+                }
+
+            } catch (error) {
+                console.error('[ADMIN] Error fetching period summary:', error);
+                summaryContent.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #e74c3c;">
+                        <strong>Error loading period summary</strong><br>
+                        <span style="font-size: 13px;">${error.message}</span>
+                    </div>
+                `;
+                confirmBtn.disabled = true;
+            }
+        }
+
+        // Confirm and close the period
+        async function confirmClosePeriod() {
+            const companyId = document.getElementById('closePeriodCompanyId').value;
+
+            if (!companyId) {
+                Notify.error('Please select a company to close the period for.');
+                return;
+            }
+
+            const confirmBtn = document.getElementById('confirmClosePeriodBtn');
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = 'Processing...';
+
+            try {
+                console.log('[ADMIN] Closing accounting period for company:', companyId);
+
+                // Fetch accounts for the selected company
+                const response = await fetch(`/php/api/admin/accounts/list.php?company_id=${companyId}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to load accounts');
+                }
+
+                const accounts = result.data || [];
+
+                // Get all revenue accounts (exclude external/system accounts)
+                const revenueAccounts = accounts.filter(a => a.account_type_id == 4 && a.is_system_account != 1);
+                const totalRevenue = revenueAccounts.reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0);
+
+                // Get all expense accounts (exclude external/system accounts)
+                const expenseAccounts = accounts.filter(a => a.account_type_id == 5 && a.is_system_account != 1);
+                const totalExpenses = expenseAccounts.reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0);
+
+                // Calculate net income
+                const netIncome = Math.abs(totalRevenue) - Math.abs(totalExpenses);
+                const isProfit = netIncome >= 0;
+
+                // Find Retained Earnings account
+                const retainedEarnings = accounts.find(a =>
+                    a.account_type_id == 3 &&
+                    (a.account_name.toLowerCase().includes('retained') ||
+                     a.account_name.toLowerCase().includes('earnings'))
+                );
+
+                if (!retainedEarnings) {
+                    throw new Error('Retained Earnings account not found. Please create one first.');
+                }
+
+                // Build transaction lines
+                const lines = [];
+
+                // Add revenue accounts (debit to zero them out)
+                revenueAccounts.forEach(acc => {
+                    const amount = Math.abs(parseFloat(acc.current_balance || 0));
+                    if (amount > 0.01) {  // Only include if has significant balance
+                        lines.push({
+                            account_id: acc.id,
+                            line_type: 'debit',  // Debit revenue to close it
+                            amount: amount
+                        });
+                    }
+                });
+
+                // Add expense accounts (credit to zero them out)
+                expenseAccounts.forEach(acc => {
+                    const amount = Math.abs(parseFloat(acc.current_balance || 0));
+                    if (amount > 0.01) {  // Only include if has significant balance
+                        lines.push({
+                            account_id: acc.id,
+                            line_type: 'credit',  // Credit expense to close it
+                            amount: amount
+                        });
+                    }
+                });
+
+                // Add retained earnings entry (opposite of net income)
+                if (Math.abs(netIncome) > 0.01) {
+                    lines.push({
+                        account_id: retainedEarnings.id,
+                        line_type: isProfit ? 'credit' : 'debit',  // Credit if profit, debit if loss
+                        amount: Math.abs(netIncome)
+                    });
+                }
+
+                if (lines.length === 0) {
+                    Notify.warning('No closing entries needed', 'All Revenue and Expense accounts are already at zero.');
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = 'Confirm & Close Period';
+                    return;
+                }
+
+                // Create the closing transaction
+                const today = new Date().toISOString().split('T')[0];
+                const transactionData = {
+                    company_id: parseInt(companyId),
+                    transaction_date: today,
+                    description: `Period Closing Entry - ${new Date().toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'})} - Net ${isProfit ? 'Profit' : 'Loss'}: $${Math.abs(netIncome).toFixed(2)}`,
+                    reference_number: `CLOSE-${today}`,
+                    status: 'posted',  // Post immediately (admin can do this)
+                    lines: lines
+                };
+
+                console.log('[ADMIN] Closing entry data:', transactionData);
+
+                // Save the transaction
+                const createResponse = await fetch('/php/api/admin/transactions/create.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transactionData)
+                });
+
+                const createResult = await createResponse.json();
+
+                if (createResult.success) {
+                    Notify.success(
+                        'Period Closed Successfully!',
+                        `Closing entry created. Net ${isProfit ? 'Profit' : 'Loss'}: $${Math.abs(netIncome).toFixed(2)}. Revenue and Expense accounts have been reset to zero.`
+                    );
+                    closeClosePeriodModal();
+                    loadData(); // Reload transactions list
+                } else {
+                    throw new Error(createResult.message || 'Failed to create closing entry');
+                }
+
+            } catch (error) {
+                console.error('[ADMIN] Close period error:', error);
+                Notify.error('Failed to close period', error.message);
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = 'Confirm & Close Period';
+            }
+        }
+
+        // Load companies on page load
+        loadCompanies();
+    </script>
+</body>
+</html>
+

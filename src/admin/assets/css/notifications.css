@@ -1,0 +1,207 @@
+/* ============================================================================
+   CUSTOM NOTIFICATION SYSTEM - Replace alert() with professional modals
+   ============================================================================ */
+
+/* Notification Container */
+.notification-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Notification Box */
+.notification-box {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    min-width: 400px;
+    max-width: 600px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Notification Header */
+.notification-header {
+    padding: 20px 25px;
+    border-bottom: 1px solid #ecf0f1;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.notification-header.success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border-bottom-color: #b1dfbb;
+}
+
+.notification-header.error {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    border-bottom-color: #f1b0b7;
+}
+
+.notification-header.warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffecb5 100%);
+    border-bottom-color: #ffe69c;
+}
+
+.notification-header.info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    border-bottom-color: #abdde5;
+}
+
+/* Icon */
+.notification-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+}
+
+.notification-header.success .notification-icon {
+    color: #155724;
+}
+
+.notification-header.error .notification-icon {
+    color: #721c24;
+}
+
+.notification-header.warning .notification-icon {
+    color: #856404;
+}
+
+.notification-header.info .notification-icon {
+    color: #0c5460;
+}
+
+/* Title */
+.notification-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+}
+
+.notification-header.success .notification-title {
+    color: #155724;
+}
+
+.notification-header.error .notification-title {
+    color: #721c24;
+}
+
+.notification-header.warning .notification-title {
+    color: #856404;
+}
+
+.notification-header.info .notification-title {
+    color: #0c5460;
+}
+
+/* Body */
+.notification-body {
+    padding: 25px;
+}
+
+.notification-message {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.notification-details {
+    margin-top: 15px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-left: 3px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #6c757d;
+}
+
+/* Footer */
+.notification-footer {
+    padding: 15px 25px;
+    border-top: 1px solid #ecf0f1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.notification-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.notification-btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.notification-btn-primary:hover {
+    background: #2980b9;
+}
+
+.notification-btn-success {
+    background: #27ae60;
+    color: white;
+}
+
+.notification-btn-success:hover {
+    background: #229954;
+}
+
+.notification-btn-danger {
+    background: #e74c3c;
+    color: white;
+}
+
+.notification-btn-danger:hover {
+    background: #c0392b;
+}
+
+.notification-btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.notification-btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+/* Confirm Dialog Specific */
+.notification-confirm .notification-footer {
+    justify-content: space-between;
+}
+

@@ -1,0 +1,149 @@
+/*
+ * Dashboard Page Styles
+ * Accounting System
+ * Aligned with: Reference.md (4 charts, modern list), USE-CASE UC-T01, FLOWCHART FC-4
+ */
+
+/* ============================================================================
+   DASHBOARD GRID (4 Charts Layout)
+   ============================================================================ */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+/* ============================================================================
+   DASHBOARD CARD
+   ============================================================================ */
+
+.dashboard-card {
+  min-height: 350px;
+}
+
+.dashboard-card--wide {
+  grid-column: 1 / -1; /* Full width for Revenue vs Expenses chart */
+}
+
+.dashboard-card .card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.dashboard-card__amount {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-primary);
+}
+
+.dashboard-card .card__body {
+  position: relative;
+  min-height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================================
+   LEGEND (for Revenue vs Expenses chart)
+   ============================================================================ */
+
+.dashboard-card__legend {
+  display: flex;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.dashboard-card__legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dashboard-card__legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+}
+
+.dashboard-card__legend-dot--revenue {
+  background-color: var(--color-revenue); /* Green */
+}
+
+.dashboard-card__legend-dot--expense {
+  background-color: var(--color-expense); /* Orange */
+}
+
+/* ============================================================================
+   MODERN LIST (No HTML table - Reference.md requirement)
+   ============================================================================ */
+
+.list__item--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  color: var(--color-gray-500);
+}
+
+.list__item--empty {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--color-gray-500);
+}
+
+/* Transaction list specific styles */
+#recentTransactionsList .list__item {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+#recentTransactionsList .list__item:hover {
+  background-color: var(--color-gray-50);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-card__amount {
+    font-size: var(--text-xl);
+  }
+
+  .dashboard-card {
+    min-height: 300px;
+  }
+
+  .list__header {
+    display: none; /* Hide header on mobile */
+  }
+
+  #recentTransactionsList .list__item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  #recentTransactionsList .list__cell {
+    flex: 1 1 100% !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+

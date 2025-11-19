@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Management - Admin</title>
+
+    <!-- Prevent page caching -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Immediate session check -->
+    <script>
+        document.documentElement.style.visibility = 'hidden';
+        (function() {
+            fetch('/php/api/auth/session.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success || data.data.user.role !== 'admin') {
+                        window.location.replace('/admin/login.html');
+                        return;
+                    }
+                    document.documentElement.style.visibility = 'visible';
+                })
+                .catch(() => window.location.replace('/admin/login.html'));
+        })();
+    </script>
+
+    <link rel="stylesheet" href="/admin/assets/css/admin-professional.css">
+    <script src="/admin/assets/js/badge-loader.js" defer></script>
+    <script src="/shared/js/notifications.js" defer></script>
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="admin-brand">
+                <h1>Accounting System</h1>
+                <p class="admin-role">Administrator</p>
+            </div>
+
+            <!-- Logout Button -->
+            <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn-logout" id="logoutBtn" style="width: 100%; padding: 1rem">
+                    Logout
+                </button>
+            </div>
+
+            <nav class="admin-nav">
+                <a href="/admin/dashboard.html" class="admin-nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/admin/companies.html" class="admin-nav-item">
+                    <span class="icon">🏢</span>
+                    <span>Companies</span>
+                </a>
+                <a href="/admin/accounts.html" class="admin-nav-item active">
+                    <span class="icon">💰</span>
+                    <span>Account Management</span>
+                </a>
+                <a href="/admin/transactions.html" class="admin-nav-item">
+                    <span class="icon">💸</span>
+                    <span>All Transactions</span>
+                </a>
+                <a href="/admin/tenants.html" class="admin-nav-item">
+                    <span class="icon">👥</span>
+                    <span>All Tenants</span>
+                </a>
+                <a href="/admin/reports.html" class="admin-nav-item">
+                    <span class="icon">📊</span>
+                    <span>Reports</span>
+                </a>
+                <a href="/admin/pending-approvals.html" class="admin-nav-item">
+                    <span class="icon">⚠️</span>
+                    <span>Pending Approvals</span>
+                    <span class="badge" id="approvalsBadge" style="background:#f39c12;color:white;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:auto;display:none;">0</span>
+                </a>
+                <a href="/admin/pending-registrations.html" class="admin-nav-item">
+                    <span class="icon">⏳</span>
+                    <span>Pending Registrations</span>
+                    <span class="badge" id="pendingRegBadge" style="background:#e74c3c;color:white;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:auto;display:none;">0</span>
+                </a>
+                <a href="/admin/logs.html" class="admin-nav-item">
+                    <span class="icon">📝</span>
+                    <span>Activity Logs</span>
+                </a>
+                <a href="/admin/settings.html" class="admin-nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="admin-user">
+                <div class="admin-user-info">
+                    <strong id="username">Admin</strong>
+                    <small id="userEmail">admin@system.com</small>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <header class="content-header">
+                <div>
+                    <h2 class="page-title">Account Management</h2>
+                    <p class="page-subtitle">View and manage all accounts across companies</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="loadAccounts()" id="refreshBtn">
+                        <span id="refreshIcon"></span> Refresh
+                    </button>
+                </div>
+            </header>
+
+            <div style="padding: 30px;">
+                <!-- Warning Banner -->
+                <div style="background: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                    <strong style="color: #856404;">⚠️ Admin Controls:</strong>
+                    <span style="color: #856404;">You have elevated permissions to void and deactivate accounts. Use these actions carefully as they affect the company's financial records.</span>
+                </div>
+
+                <!-- Filter Section -->
+                <div class="filters-section" style="background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; width: 100%;">
+                        <div class="filter-group">
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Company: </label>
+                            <select id="filterCompany" onchange="loadAccounts()" style="width: 100%; padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px;">
+                                <option value="">-- Select Company --</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Account Type:</label>
+                            <select id="filterType" onchange="filterAccounts()" style="width: 100%; padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px;">
+                                <option value="">All Types</option>
+                                <option value="1">Assets</option>
+                                <option value="2">Liabilities</option>
+                                <option value="3">Equity</option>
+                                <option value="4">Revenue</option>
+                                <option value="5">Expenses</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Status:</label>
+                            <select id="filterStatus" onchange="filterAccounts()" style="width: 100%; padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px;">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="system">System Accounts</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Search:</label>
+                            <input type="text" id="searchInput" placeholder="Search by name or code..."
+                                   onkeyup="filterAccounts()"
+                                   style="width: 100%; padding: 8px 12px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="stats-grid" style="margin-bottom: 30px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Accounts</div>
+                        <div class="stat-value" id="totalAccounts">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Accounts</div>
+                        <div class="stat-value" id="activeAccounts">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Inactive Accounts</div>
+                        <div class="stat-value" id="inactiveAccounts">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">System Accounts</div>
+                        <div class="stat-value" id="systemAccounts">0</div>
+                    </div>
+                </div>
+
+                <!-- Accounts Table -->
+                <div class="data-table-container">
+                    <table class="data-table" style="table-layout: fixed;">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">Code</th>
+                                <th style="width: 200px;">Account Name</th>
+                                <th style="width: 100px;">Type</th>
+                                <th style="width: 150px;">Company</th>
+                                <th style="text-align: right; width: 120px;">Balance</th>
+                                <th style="text-align: center; width: 100px;">Status</th>
+                                <th style="text-align: center; width: 250px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accountsContainer">
+                            <tr>
+                                <td colspan="7" class="loading-cell">
+                                    <div class="loading-spinner"></div>
+                                    Loading accounts...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div id="paginationControls" style="display: none; justify-content: space-between; align-items: center; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="color: #555; font-size: 14px;">
+                        Showing <strong id="showingStart">0</strong> to <strong id="showingEnd">0</strong> of <strong id="showingTotal">0</strong> accounts
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="prevBtn" onclick="previousPage()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer;" disabled>
+                            ← Previous
+                        </button>
+                        <span id="pageInfo" style="display: flex; align-items: center; padding: 0 15px; font-weight: 600;"></span>
+                        <button id="nextBtn" onclick="nextPage()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer;" disabled>
+                            Next →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Deactivate Confirmation Modal -->
+    <div id="deactivateModal" class="modal" onclick="if(event.target === this) closeDeactivateModal()">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; border-radius: 12px 12px 0 0;">
+                <h3 style="color: white; margin: 0;">⚠️ Deactivate Account</h3>
+                <button class="modal-close" onclick="closeDeactivateModal()" style="color: white; opacity: 0.9;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 30px 20px;">
+                <p style="color: #555; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+                    Are you sure you want to deactivate this account? This account will be hidden from tenants but can be reactivated later.
+                </p>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <strong style="display: block; margin-bottom: 10px; color: #2c3e50;">Account Details:</strong>
+                    <div style="font-size: 13px; color: #555;">
+                        <strong>Code:</strong> <span id="deactivateAccountCode"></span><br>
+                        <strong>Name:</strong> <span id="deactivateAccountName"></span><br>
+                        <strong>Company:</strong> <span id="deactivateAccountCompany"></span>
+                    </div>
+                </div>
+                <div style="background: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; border-radius: 4px;">
+                    <strong style="color: #856404; font-size: 13px;">What happens:</strong>
+                    <ul style="margin: 10px 0 0 20px; padding: 0; color: #856404; font-size: 13px;">
+                        <li>Account will be marked as inactive</li>
+                        <li>Hidden from tenant dropdown lists</li>
+                        <li>Can be reactivated anytime</li>
+                        <li>Existing transactions remain</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDeactivateModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmDeactivate()" style="background: #e74c3c;">Deactivate</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Void Confirmation Modal -->
+    <div id="voidModal" class="modal" onclick="if(event.target === this) closeVoidModal()">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #c0392b 0%, #a93226 100%); color: white; border-radius: 12px 12px 0 0;">
+                <h3 style="color: white; margin: 0;">🚫 Void Account (Permanent)</h3>
+                <button class="modal-close" onclick="closeVoidModal()" style="color: white; opacity: 0.9;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 30px 20px;">
+                <div style="background: #ffebee; border-left: 4px solid #e74c3c; padding: 20px; margin-bottom: 20px; border-radius: 8px;">
+                    <strong style="color: #c0392b; display: block; margin-bottom: 10px;">⚠️ CRITICAL ACTION</strong>
+                    <p style="color: #c0392b; font-size: 14px; margin: 0;">
+                        Voiding is PERMANENT. This account will be marked as voided and cannot be used for future transactions. This action is typically used for accounts created in error.
+                    </p>
+                </div>
+
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <strong style="display: block; margin-bottom: 10px; color: #2c3e50;">Account Details:</strong>
+                    <div style="font-size: 13px; color: #555;">
+                        <strong>Code:</strong> <span id="voidAccountCode"></span><br>
+                        <strong>Name:</strong> <span id="voidAccountName"></span><br>
+                        <strong>Company:</strong> <span id="voidAccountCompany"></span><br>
+                        <strong>Balance:</strong> <span id="voidAccountBalance"></span>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Reason for Voiding <span style="color: red;">*</span></label>
+                    <textarea id="voidReason" rows="3" placeholder="e.g., Account created in error, duplicate account, etc." style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 14px; font-family: inherit;"></textarea>
+                </div>
+
+                <div style="background: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; border-radius: 4px;">
+                    <strong style="color: #856404; font-size: 13px;">Requirements:</strong>
+                    <ul style="margin: 10px 0 0 20px; padding: 0; color: #856404; font-size: 13px;">
+                        <li>Account must have no pending transactions</li>
+                        <li>Cannot void system accounts</li>
+                        <li>Action is logged for audit trail</li>
+                        <li>Account remains visible but marked as voided</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeVoidModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmVoid()" style="background: #c0392b;">Void Account</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 2px solid #ecf0f1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #95a5a6;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 2px solid #ecf0f1;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(52, 152, 219, 0.2);
+            border-top-color: #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+
+    <script>
+        console.log('[ADMIN ACCOUNTS] Starting...');
+
+        let allAccounts = [];
+        let filteredAccounts = [];
+        let companies = [];
+        let currentPage = 1;
+        const itemsPerPage = 20;
+        let currentAccountId = null;
+
+        const accountTypes = {
+            1: 'Asset',
+            2: 'Liability',
+            3: 'Equity',
+            4: 'Revenue',
+            5: 'Expense'
+        };
+
+        // Check authentication
+        fetch('/php/api/auth/session.php')
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success || data.data.user.role !== 'admin') {
+                    window.location.href = '/admin/login.html';
+                    return;
+                }
+                document.getElementById('username').textContent = data.data.user.full_name;
+                document.getElementById('userEmail').textContent = data.data.user.email;
+                loadCompanies();
+                // Note: loadAccounts() will be called when user selects a company
+            })
+            .catch(() => window.location.href = '/admin/login.html');
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            fetch('/php/api/auth/logout.php', { method: 'POST' })
+                .then(() => window.location.href = '/admin/login.html');
+        });
+
+        // Load companies for filter
+        async function loadCompanies() {
+            try {
+                const response = await fetch('/php/api/companies/list.php');
+                const result = await response.json();
+                if (result.success) {
+                    companies = result.data;
+                    const select = document.getElementById('filterCompany');
+                    companies.forEach(company => {
+                        const option = document.createElement('option');
+                        option.value = company.id;
+                        option.textContent = company.company_name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('[ADMIN ACCOUNTS] Error loading companies:', error);
+            }
+        }
+
+        // Load all accounts
+        async function loadAccounts() {
+            console.log('[ADMIN ACCOUNTS] Loading accounts...');
+
+            const companySelector = document.getElementById('filterCompany');
+            const selectedCompanyId = companySelector.value;
+
+            // Check if company is selected
+            if (!selectedCompanyId) {
+                console.log('[ADMIN ACCOUNTS] No company selected');
+                allAccounts = [];
+                filteredAccounts = [];
+                updateSummary();
+                displayAccounts();
+                return;
+            }
+
+            const refreshBtn = document.getElementById('refreshBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
+            refreshBtn.disabled = true;
+            refreshIcon.style.animation = 'spin 1s linear infinite';
+
+            try {
+                const response = await fetch(`/php/api/admin/accounts/list.php?company_id=${selectedCompanyId}`);
+                const result = await response.json();
+
+                console.log('[ADMIN ACCOUNTS] Response:', result);
+
+                if (result.success) {
+                    // FILTER OUT EXTERNAL ACCOUNTS AND VOIDED ACCOUNTS
+                    const internalAccounts = (result.data || []).filter(account => {
+                        // Exclude system/external accounts
+                        if (account.is_system_account == 1) return false;
+                        // Exclude voided accounts (description starts with [VOIDED:)
+                        if (account.description && account.description.startsWith('[VOIDED:')) return false;
+                        return true;
+                    });
+                    allAccounts = internalAccounts;
+                    filteredAccounts = internalAccounts;
+                    updateSummary();
+                    displayAccounts();
+                    console.log('[ADMIN ACCOUNTS] ✅ Loaded', allAccounts.length, 'internal accounts (external and voided excluded) for company', selectedCompanyId);
+                } else {
+                    Notify.error('Failed to load accounts', result.message);
+                }
+            } catch (error) {
+                console.error('[ADMIN ACCOUNTS] Error:', error);
+                Notify.error('Error loading accounts', error.message);
+            } finally {
+                refreshBtn.disabled = false;
+                refreshIcon.style.animation = 'none';
+            }
+        }
+
+        // Update summary cards
+        function updateSummary() {
+            const active = allAccounts.filter(a => a.is_active == 1);
+            const inactive = allAccounts.filter(a => a.is_active == 0);
+            const system = allAccounts.filter(a => a.is_system_account == 1);
+
+            document.getElementById('totalAccounts').textContent = allAccounts.length;
+            document.getElementById('activeAccounts').textContent = active.length;
+            document.getElementById('inactiveAccounts').textContent = inactive.length;
+            document.getElementById('systemAccounts').textContent = system.length;
+        }
+
+        // Filter accounts
+        function filterAccounts() {
+            const companyFilter = document.getElementById('filterCompany').value;
+            const typeFilter = document.getElementById('filterType').value;
+            const statusFilter = document.getElementById('filterStatus').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            filteredAccounts = allAccounts.filter(account => {
+                if (companyFilter && account.company_id != companyFilter) return false;
+                if (typeFilter && account.account_type_id != typeFilter) return false;
+
+                if (statusFilter === 'active' && account.is_active != 1) return false;
+                if (statusFilter === 'inactive' && account.is_active != 0) return false;
+                if (statusFilter === 'system' && account.is_system_account != 1) return false;
+
+                if (searchTerm) {
+                    const searchableText = (
+                        account.account_code +
+                        account.account_name +
+                        (account.description || '')
+                    ).toLowerCase();
+                    if (!searchableText.includes(searchTerm)) return false;
+                }
+
+                return true;
+            });
+
+            currentPage = 1;
+            displayAccounts();
+        }
+
+        // Display accounts with pagination
+        function displayAccounts() {
+            const container = document.getElementById('accountsContainer');
+            const paginationControls = document.getElementById('paginationControls');
+            const companySelector = document.getElementById('filterCompany');
+
+            if (!companySelector.value) {
+                container.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #666;"><strong>👆 Please select a company to view accounts</strong></td></tr>';
+                paginationControls.style.display = 'none';
+                return;
+            }
+
+            if (filteredAccounts.length === 0) {
+                container.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #666;">No accounts found for selected company.</td></tr>';
+                paginationControls.style.display = 'none';
+                return;
+            }
+
+            const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredAccounts.length);
+            const pageAccounts = filteredAccounts.slice(startIndex, endIndex);
+
+            container.innerHTML = pageAccounts.map(account => {
+                const isSystem = account.is_system_account == 1;
+                const isActive = account.is_active == 1;
+                const statusBadge = isActive
+                    ? '<span style="background: #27ae60; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">ACTIVE</span>'
+                    : '<span style="background: #95a5a6; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">INACTIVE</span>';
+
+                const systemBadge = isSystem ? '<span style="background: #3498db; color: white; padding: 2px 8px; border-radius: 8px; font-size: 10px; margin-left: 5px;">SYSTEM</span>' : '';
+
+                const company = companies.find(c => c.id == account.company_id);
+                const companyName = company ? company.company_name : 'N/A';
+
+                let actions = '';
+                if (isSystem) {
+                    actions = '<span style="color: #7f8c8d; font-size: 12px;">Protected</span>';
+                } else if (isActive) {
+                    actions = `
+                        <button onclick="openDeactivateModal(${account.id})" style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                            Deactivate
+                        </button>
+                        <button onclick="openVoidModal(${account.id})" style="padding: 6px 12px; background: #c0392b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; margin-left: 5px;">
+                            Void
+                        </button>
+                    `;
+                } else {
+                    actions = `
+                        <button onclick="reactivateAccount(${account.id})" style="padding: 6px 12px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                            Reactivate
+                        </button>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td style="padding: 12px; font-family: monospace; font-weight: 600; color: #2c3e50;">${account.account_code}</td>
+                        <td style="padding: 12px; font-weight: 600; color: #2c3e50;">
+                            ${account.account_name}${systemBadge}
+                        </td>
+                        <td style="padding: 12px; color: #555;">${accountTypes[account.account_type_id]}</td>
+                        <td style="padding: 12px; color: #555;">${companyName}</td>
+                        <td style="padding: 12px; text-align: right; font-weight: 700; color: ${parseFloat(account.current_balance) >= 0 ? '#27ae60' : '#e74c3c'};">
+                            $${parseFloat(account.current_balance).toFixed(2)}
+                        </td>
+                        <td style="padding: 12px; text-align: center;">${statusBadge}</td>
+                        <td style="padding: 12px; text-align: center;">${actions}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Update pagination
+            paginationControls.style.display = 'flex';
+            document.getElementById('showingStart').textContent = startIndex + 1;
+            document.getElementById('showingEnd').textContent = endIndex;
+            document.getElementById('showingTotal').textContent = filteredAccounts.length;
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                displayAccounts();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                displayAccounts();
+            }
+        }
+
+        // Open deactivate modal
+        function openDeactivateModal(accountId) {
+            const account = allAccounts.find(a => a.id == accountId);
+            if (!account) return;
+
+            currentAccountId = accountId;
+            document.getElementById('deactivateAccountCode').textContent = account.account_code;
+            document.getElementById('deactivateAccountName').textContent = account.account_name;
+            document.getElementById('deactivateAccountCompany').textContent = account.company_name;
+            document.getElementById('deactivateModal').classList.add('show');
+        }
+
+        function closeDeactivateModal() {
+            document.getElementById('deactivateModal').classList.remove('show');
+            currentAccountId = null;
+        }
+
+        // Confirm deactivate
+        async function confirmDeactivate() {
+            if (!currentAccountId) return;
+
+            try {
+                const response = await fetch('/php/api/admin/accounts/deactivate.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: currentAccountId })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Notify.success('Account Deactivated', 'Account has been deactivated successfully');
+                    closeDeactivateModal();
+                    loadAccounts();
+                } else {
+                    Notify.error('Deactivation Failed', result.message);
+                }
+            } catch (error) {
+                console.error('[ADMIN ACCOUNTS] Deactivate error:', error);
+                Notify.error('Error', error.message);
+            }
+        }
+
+        // Reactivate account
+        async function reactivateAccount(accountId) {
+            if (!confirm('Are you sure you want to reactivate this account?')) return;
+
+            try {
+                const response = await fetch('/php/api/admin/accounts/reactivate.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: accountId })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Notify.success('Account Reactivated', 'Account has been reactivated successfully');
+                    loadAccounts();
+                } else {
+                    Notify.error('Reactivation Failed', result.message);
+                }
+            } catch (error) {
+                console.error('[ADMIN ACCOUNTS] Reactivate error:', error);
+                Notify.error('Error', error.message);
+            }
+        }
+
+        // Open void modal
+        function openVoidModal(accountId) {
+            const account = allAccounts.find(a => a.id == accountId);
+            if (!account) return;
+
+            currentAccountId = accountId;
+            document.getElementById('voidAccountCode').textContent = account.account_code;
+            document.getElementById('voidAccountName').textContent = account.account_name;
+            document.getElementById('voidAccountCompany').textContent = account.company_name;
+            document.getElementById('voidAccountBalance').textContent = '$' + parseFloat(account.current_balance).toFixed(2);
+            document.getElementById('voidReason').value = '';
+            document.getElementById('voidModal').classList.add('show');
+        }
+
+        function closeVoidModal() {
+            document.getElementById('voidModal').classList.remove('show');
+            currentAccountId = null;
+        }
+
+        // Confirm void
+        async function confirmVoid() {
+            if (!currentAccountId) return;
+
+            const reason = document.getElementById('voidReason').value.trim();
+            if (!reason) {
+                Notify.error('Reason Required', 'Please provide a reason for voiding this account');
+                return;
+            }
+
+            try {
+                // First attempt - check for cascade requirements
+                const response = await fetch('/php/api/admin/accounts/void.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: currentAccountId,
+                        reason: reason,
+                        cascade_confirmed: false
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Simple void success (no cascade needed)
+                    const summary = result.transactions_affected > 0
+                        ? `${result.transactions_deleted} pending deleted, ${result.transactions_voided} posted voided`
+                        : 'No transactions affected';
+
+                    Notify.success('Account Voided',
+                        `Account ${result.voided_account} has been voided successfully. ${summary}`);
+                    closeVoidModal();
+                    loadAccounts();
+                } else if (result.requires_cascade) {
+                    // Cascade confirmation needed
+                    // Save these before closing modal (closeVoidModal sets currentAccountId to null)
+                    const accountIdForCascade = currentAccountId;
+                    const reasonForCascade = reason;
+                    closeVoidModal();
+                    showCascadeWarning(accountIdForCascade, reasonForCascade, result);
+                } else {
+                    // Handle error response
+                    const errorMsg = typeof result.message === 'string' ? result.message : 'Failed to void account';
+                    Notify.error('Void Failed', errorMsg);
+                }
+            } catch (error) {
+                console.error('[ADMIN ACCOUNTS] Void error:', error);
+                const errorMsg = error.message || 'An error occurred while voiding the account';
+                Notify.error('Error', errorMsg);
+            }
+        }
+
+        // Show cascade warning modal
+        function showCascadeWarning(accountId, reason, cascadeData) {
+            const { affected_transactions, warning } = cascadeData;
+            const total = affected_transactions.total || 0;
+            const pending = (affected_transactions.pending || []).length;
+            const posted = (affected_transactions.posted || []).length;
+
+            // Build transaction list HTML
+            let transactionListHTML = '';
+
+            if (pending > 0) {
+                transactionListHTML += `<div class="cascade-section">
+                    <h4>⚠️ Pending Transactions (${pending}) - Will be DELETED:</h4>
+                    <ul class="cascade-list">`;
+                affected_transactions.pending.forEach(t => {
+                    transactionListHTML += `<li>${t.transaction_number} - ${t.description} (${t.transaction_date})</li>`;
+                });
+                transactionListHTML += `</ul></div>`;
+            }
+
+            if (posted > 0) {
+                transactionListHTML += `<div class="cascade-section">
+                    <h4>🔄 Posted Transactions (${posted}) - Will be VOIDED:</h4>
+                    <ul class="cascade-list">`;
+                affected_transactions.posted.forEach(t => {
+                    transactionListHTML += `<li>${t.transaction_number} - ${t.description} (${t.transaction_date})</li>`;
+                });
+                transactionListHTML += `</ul></div>`;
+            }
+
+            // Create custom cascade warning modal with proper overlay styling
+            const modalHTML = `
+                <div class="notification-overlay" id="cascadeWarningModal" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+                    <div class="notification-box" style="background: white; border-radius: 8px; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                        <div class="notification-header warning" style="background: #fff3cd; padding: 20px; border-bottom: 2px solid #ffc107; display: flex; align-items: center; gap: 15px;">
+                            <div class="notification-icon" style="font-size: 32px;">⚠️</div>
+                            <h3 class="notification-title" style="margin: 0; color: #856404; font-size: 20px;">CASCADE VOID WARNING</h3>
+                        </div>
+                        <div class="notification-body" style="padding: 20px;">
+                            <div class="cascade-warning">
+                                <p class="warning-text">${warning}</p>
+                                <p class="danger-text">⚠️ This operation is DANGEROUS and CANNOT be undone!</p>
+                                ${transactionListHTML}
+                                <div class="confirmation-checkbox">
+                                    <label>
+                                        <input type="checkbox" id="cascadeConfirmCheck" />
+                                        <strong>I understand this will permanently void ${total} transaction(s) and cannot be reversed</strong>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="notification-footer" style="padding: 20px; border-top: 1px solid #dee2e6; display: flex; gap: 10px; justify-content: flex-end;">
+                            <button class="notification-btn notification-btn-secondary" onclick="document.getElementById('cascadeWarningModal').remove()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Cancel
+                            </button>
+                            <button class="notification-btn notification-btn-danger" id="confirmCascadeBtn"
+                                    data-account-id="${accountId}"
+                                    data-reason="${reason.replace(/"/g, '&quot;')}"
+                                    style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                                Confirm Cascade Void
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove any existing modal
+            const existingModal = document.getElementById('cascadeWarningModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            // Attach click handler to confirm button - read from data attributes
+            document.getElementById('confirmCascadeBtn').addEventListener('click', function() {
+                const btn = this;
+                const accountIdFromData = parseInt(btn.getAttribute('data-account-id'));
+                const reasonFromData = btn.getAttribute('data-reason');
+                console.log('[ADMIN ACCOUNTS] Button clicked, data attributes:', { accountIdFromData, reasonFromData });
+                executeCascadeVoid(accountIdFromData, reasonFromData);
+            });
+        }
+
+        // Execute cascade void after confirmation
+        async function executeCascadeVoid(accountId, reason) {
+            console.log('[ADMIN ACCOUNTS] executeCascadeVoid called with:', { accountId, reason });
+
+            const checkbox = document.getElementById('cascadeConfirmCheck');
+            if (!checkbox || !checkbox.checked) {
+                Notify.error('Confirmation Required', 'Please check the confirmation checkbox to proceed');
+                return;
+            }
+
+            try {
+                const payload = {
+                    id: accountId,
+                    reason: reason,
+                    cascade_confirmed: true
+                };
+
+                console.log('[ADMIN ACCOUNTS] Sending payload:', payload);
+
+                const response = await fetch('/php/api/admin/accounts/void.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                console.log('[ADMIN ACCOUNTS] Response:', result);
+
+                if (result.success) {
+                    // Close the cascade warning modal
+                    const modal = document.getElementById('cascadeWarningModal');
+                    if (modal) modal.remove();
+
+                    Notify.success('Cascade Void Complete',
+                        `Account voided successfully. ${result.transactions_affected} transaction(s) affected: ` +
+                        `${result.transactions_deleted} deleted, ${result.transactions_voided} voided.`);
+                    loadAccounts();
+                } else {
+                    const errorMsg = typeof result.message === 'string' ? result.message : 'Failed to void account';
+                    Notify.error('Cascade Void Failed', errorMsg);
+                }
+            } catch (error) {
+                console.error('[ADMIN ACCOUNTS] Cascade void error:', error);
+                const errorMsg = error.message || 'An error occurred during cascade void';
+                Notify.error('Error', errorMsg);
+            }
+        }
+    </script>
+</body>
+</html>
+

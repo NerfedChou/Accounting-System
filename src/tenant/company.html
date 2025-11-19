@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Profile - Accounting System</title>
+
+    <!-- Prevent page caching -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Immediate session check -->
+    <script>
+        document.documentElement.style.visibility = 'hidden';
+        (function() {
+            fetch('/php/api/auth/session.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success || data.data.user.role !== 'tenant') {
+                        window.location.replace('/tenant/login.html');
+                        return;
+                    }
+                    const user = data.data.user;
+                    // Priority 1: Check registration status (pending/declined take precedence)
+                    const status = user.registration_status || 'approved';
+                    if (status === 'pending') {
+                        window.location.replace('/tenant/pending-approval.html');
+                        return;
+                    } else if (status === 'declined') {
+                        window.location.replace('/tenant/registration-declined.html');
+                        return;
+                    }
+                    // Priority 2: Check if account is deactivated (only for approved users)
+                    if (user.is_active === 0 || user.is_active === '0' || user.is_active === false) {
+                        window.location.replace('/tenant/account-deactivated.html');
+                        return;
+                    }
+                    document.documentElement.style.visibility = 'visible';
+                })
+                .catch(() => window.location.replace('/tenant/login.html'));
+        })();
+    </script>
+
+    <link rel="stylesheet" href="/admin/assets/css/admin-professional.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div class="admin-brand">
+                <h1>Accounting System</h1>
+                <p class="admin-role" id="companyName">Loading...</p>
+            </div>
+
+            <!-- Logout Button - Easy Access -->
+            <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn-logout" id="logoutBtn" style="width: 100%; padding: 1rem">
+                    Logout
+                </button>
+            </div>
+
+            <nav class="admin-nav">
+                <a href="/tenant/dashboard.html" class="admin-nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tenant/accounts.html" class="admin-nav-item">
+                    <span class="icon">💰</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/tenant/transactions.html" class="admin-nav-item">
+                    <span class="icon">📝</span>
+                    <span>Transactions</span>
+                </a>
+                <a href="/tenant/reports.html" class="admin-nav-item">
+                    <span class="icon">📈</span>
+                    <span>Reports</span>
+                </a>
+                <a href="/tenant/company.html" class="admin-nav-item active">
+                    <span class="icon">🏢</span>
+                    <span>Company</span>
+                </a>
+                <a href="/tenant/settings.html" class="admin-nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="admin-user">
+                <div class="admin-user-info">
+                    <strong id="username">Loading...</strong>
+                    <small id="userEmail">user@company.com</small>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <header class="content-header">
+                <div>
+                    <h2 class="page-title">Company Profile</h2>
+                    <p class="page-subtitle">View and update your company information</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="editBtn" onclick="toggleEditMode()">Edit Information</button>
+                    <button class="btn btn-secondary" id="saveBtn" onclick="saveCompany()" style="display: none; background: #27ae60; color: white; border: none;">Save Changes</button>
+                    <button class="btn btn-secondary" id="cancelBtn" onclick="cancelEdit()" style="display: none;">Cancel</button>
+                </div>
+            </header>
+
+            <div style="padding: 40px; max-width: 1400px; margin: 0 auto;">
+                <!-- Company Information Card -->
+                <div style="background: white; padding: 50px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #e0e0e0;">
+                    <form id="companyForm">
+                        <input type="hidden" id="companyId">
+
+                        <!-- Basic Information -->
+                        <h3 style="margin: 0 0 30px 0; padding-bottom: 20px; border-bottom: 3px solid #3498db; color: #2c3e50; font-size: 20px; font-weight: 600;">📋 Basic Information</h3>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 50px;">
+                            <div class="form-group">
+                                <label for="companyNameInput" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Company Name <span style="color: red;">*</span></label>
+                                <input type="text" id="companyNameInput" class="form-control" required disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="taxId" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Tax ID</label>
+                                <input type="text" id="taxId" class="form-control" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            </div>
+                        </div>
+
+                        <!-- Contact Information -->
+                        <h3 style="margin: 0 0 30px 0; padding-bottom: 20px; border-bottom: 3px solid #3498db; color: #2c3e50; font-size: 20px; font-weight: 600;">📞 Contact Information</h3>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+                            <div class="form-group">
+                                <label for="email" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Email</label>
+                                <input type="email" id="email" class="form-control" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="phone" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Phone</label>
+                                <input type="tel" id="phone" class="form-control" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 50px;">
+                            <label for="website" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Website</label>
+                            <input type="url" id="website" class="form-control" placeholder="https://example.com" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                        </div>
+
+                        <!-- Address Information -->
+                        <h3 style="margin: 0 0 30px 0; padding-bottom: 20px; border-bottom: 3px solid #3498db; color: #2c3e50; font-size: 20px; font-weight: 600;">📍 Address</h3>
+
+                        <div class="form-group" style="margin-bottom: 30px;">
+                            <label for="address" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Street Address</label>
+                            <textarea id="address" class="form-control" rows="3" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;"></textarea>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+                            <div class="form-group">
+                                <label for="city" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">City</label>
+                                <input type="text" id="city" class="form-control" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="state" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">State/Province</label>
+                                <input type="text" id="state" class="form-control" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 50px;">
+                            <div class="form-group">
+                                <label for="postalCode" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Postal Code</label>
+                                <input type="text" id="postalCode" class="form-control" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="country" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Country</label>
+                                <input type="text" id="country" class="form-control" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            </div>
+                        </div>
+
+                        <!-- Financial Settings -->
+                        <h3 style="margin: 0 0 30px 0; padding-bottom: 20px; border-bottom: 3px solid #3498db; color: #2c3e50; font-size: 20px; font-weight: 600;">💰 Financial Settings</h3>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 50px;">
+                            <div class="form-group">
+                                <label for="currencyCode" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Currency</label>
+                                <select id="currencyCode" class="form-control" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                                    <option value="USD">USD - US Dollar</option>
+                                    <option value="EUR">EUR - Euro</option>
+                                    <option value="GBP">GBP - British Pound</option>
+                                    <option value="PHP">PHP - Philippine Peso</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="fiscalYearStart" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2c3e50;">Fiscal Year Start</label>
+                                <input type="date" id="fiscalYearStart" class="form-control" disabled style="padding: 12px; font-size: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            </div>
+                        </div>
+
+                        <!-- Company Status -->
+                        <div style="margin-top: 40px; padding: 30px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; border: 2px solid #dee2e6;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="color: #2c3e50; font-size: 16px;">Company Status:</strong>
+                                    <span id="statusBadge" style="margin-left: 15px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;"></span>
+                                </div>
+                                <div style="font-size: 13px; color: #7f8c8d; text-align: right;">
+                                    <div style="margin-bottom: 5px;"><strong>Created:</strong> <span id="createdAt">-</span></div>
+                                    <div><strong>Last Updated:</strong> <span id="updatedAt">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        console.log('[COMPANY] Starting...');
+
+        let companyData = null;
+        let editMode = false;
+
+        // Initialize page
+        fetch('/php/api/auth/session.php')
+            .then(response => response.json())
+            .then(data => {
+                console.log('[COMPANY] Session:', data);
+
+                if (!data.success || data.data.user.role !== 'tenant') {
+                    window.location.href = '/tenant/login.html';
+                    return;
+                }
+
+                // Check registration status
+                const regStatus = data.data.user.registration_status || 'approved';
+                if (regStatus === 'pending') {
+                    window.location.href = '/tenant/pending-approval.html';
+                    return;
+                } else if (regStatus === 'declined') {
+                    window.location.href = '/tenant/registration-declined.html';
+                    return;
+                }
+
+                // Update UI
+                document.getElementById('username').textContent = data.data.user.full_name;
+                document.getElementById('userEmail').textContent = data.data.user.email;
+                document.getElementById('companyName').textContent = data.data.company ? data.data.company.company_name : 'No Company';
+
+                // Load company data
+                loadCompany();
+            })
+            .catch(error => {
+                console.error('[COMPANY] Session error:', error);
+                window.location.href = '/tenant/login.html';
+            });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            fetch('/php/api/auth/logout.php', { method: 'POST' })
+                .then(() => window.location.href = '/tenant/login.html');
+        });
+
+        // Load company data
+        function loadCompany() {
+            fetch('/php/api/companies/get-own.php')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('[COMPANY] Data loaded:', data);
+
+                    if (data.success) {
+                        companyData = data.data;
+                        displayCompany(companyData);
+                    } else {
+                        alert('Error loading company: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('[COMPANY] Load error:', error);
+                    alert('Error loading company data');
+                });
+        }
+
+        // Display company data
+        function displayCompany(company) {
+            document.getElementById('companyId').value = company.id;
+            document.getElementById('companyNameInput').value = company.company_name || '';
+            document.getElementById('taxId').value = company.tax_id || '';
+            document.getElementById('email').value = company.email || '';
+            document.getElementById('phone').value = company.phone || '';
+            document.getElementById('website').value = company.website || '';
+            document.getElementById('address').value = company.address || '';
+            document.getElementById('city').value = company.city || '';
+            document.getElementById('state').value = company.state || '';
+            document.getElementById('postalCode').value = company.postal_code || '';
+            document.getElementById('country').value = company.country || '';
+            document.getElementById('currencyCode').value = company.currency_code || 'USD';
+            document.getElementById('fiscalYearStart').value = company.fiscal_year_start || '';
+
+            // Status
+            const statusBadge = document.getElementById('statusBadge');
+            if (company.is_active) {
+                statusBadge.textContent = 'Active';
+                statusBadge.style.background = '#27ae60';
+                statusBadge.style.color = 'white';
+            } else {
+                statusBadge.textContent = 'Inactive';
+                statusBadge.style.background = '#95a5a6';
+                statusBadge.style.color = 'white';
+            }
+
+            // Dates
+            document.getElementById('createdAt').textContent = formatDateTime(company.created_at);
+            document.getElementById('updatedAt').textContent = formatDateTime(company.updated_at);
+        }
+
+        // Toggle edit mode
+        function toggleEditMode() {
+            editMode = true;
+
+            // Enable all inputs
+            document.querySelectorAll('#companyForm input, #companyForm textarea, #companyForm select').forEach(input => {
+                if (input.id !== 'companyId') {
+                    input.disabled = false;
+                }
+            });
+
+            // Swap buttons
+            document.getElementById('editBtn').style.display = 'none';
+            document.getElementById('saveBtn').style.display = 'inline-block';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+        }
+
+        // Cancel edit
+        function cancelEdit() {
+            editMode = false;
+
+            // Disable all inputs
+            document.querySelectorAll('#companyForm input, #companyForm textarea, #companyForm select').forEach(input => {
+                input.disabled = true;
+            });
+
+            // Restore original data
+            displayCompany(companyData);
+
+            // Swap buttons
+            document.getElementById('editBtn').style.display = 'inline-block';
+            document.getElementById('saveBtn').style.display = 'none';
+            document.getElementById('cancelBtn').style.display = 'none';
+        }
+
+        // Save company
+        function saveCompany() {
+            const data = {
+                id: document.getElementById('companyId').value,
+                company_name: document.getElementById('companyNameInput').value,
+                tax_id: document.getElementById('taxId').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                website: document.getElementById('website').value,
+                address: document.getElementById('address').value,
+                city: document.getElementById('city').value,
+                state: document.getElementById('state').value,
+                postal_code: document.getElementById('postalCode').value,
+                country: document.getElementById('country').value,
+                currency_code: document.getElementById('currencyCode').value,
+                fiscal_year_start: document.getElementById('fiscalYearStart').value
+            };
+
+            if (!data.company_name) {
+                alert('Company name is required');
+                return;
+            }
+
+            fetch('/php/api/companies/update-own.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log('[COMPANY] Save result:', result);
+
+                if (result.success) {
+                    alert('Company information updated successfully!');
+                    cancelEdit();
+                    loadCompany();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .catch(error => {
+                console.error('[COMPANY] Save error:', error);
+                alert('Error saving company data');
+            });
+        }
+
+        // Format date time
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,12 @@
+/* Accounts page styles */
+
+.alert {
+    margin-bottom: var(--space-6);
+}
+
+.alert a {
+    color: inherit;
+    font-weight: var(--font-semibold);
+    text-decoration: underline;
+}
+

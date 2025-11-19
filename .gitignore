@@ -1,0 +1,28 @@
+# Environment files
+.env
+
+# Docker volumes
+/docker/mysql/data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/logs/
+
+# Composer
+/vendor/
+composer.lock
+
+# Node modules (if using any frontend tools later)
+/node_modules/
+package-lock.json
+

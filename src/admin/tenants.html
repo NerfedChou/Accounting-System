@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Tenants - Admin Dashboard</title>
+
+    <!-- Prevent page caching -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Immediate session check -->
+    <script>
+        document.documentElement.style.visibility = 'hidden';
+        (function() {
+            fetch('/php/api/auth/session.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success || data.data.user.role !== 'admin') {
+                        window.location.replace('/admin/login.html');
+                        return;
+                    }
+                    document.documentElement.style.visibility = 'visible';
+                })
+                .catch(() => window.location.replace('/admin/login.html'));
+        })();
+    </script>
+
+    <link rel="stylesheet" href="/admin/assets/css/admin-professional.css">
+    <script src="/admin/assets/js/badge-loader.js" defer></script>
+    <script src="/admin/assets/js/pending-badge.js" defer></script>
+    <script src="/admin/assets/js/notifications.js" defer></script>
+
+    <style>
+        /* Table cell truncation */
+        .data-table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .data-table td:hover {
+            overflow: visible;
+            white-space: normal;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div class="admin-brand">
+                <h1>Accounting System</h1>
+                <p class="admin-role">Administrator</p>
+            </div>
+
+            <!-- Logout Button - Easy Access -->
+            <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn-logout" id="logoutBtn" style="width: 100%; padding: 1rem;">
+                    Logout
+                </button>
+            </div>
+
+            <nav class="admin-nav">
+                <a href="/admin/dashboard.html" class="admin-nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/admin/companies.html" class="admin-nav-item">
+                    <span class="icon">🏢</span>
+                    <span>Companies</span>
+                </a>
+                <a href="/admin/accounts.html" class="admin-nav-item">
+                    <span class="icon">💰</span>
+                    <span>Account Management</span>
+                </a>
+                <a href="/admin/transactions.html" class="admin-nav-item">
+                    <span class="icon">💸</span>
+                    <span>All Transactions</span>
+                </a>
+                <a href="/admin/tenants.html" class="admin-nav-item active">
+                    <span class="icon">👥</span>
+                    <span>All Tenants</span>
+                </a>
+                <a href="/admin/reports.html" class="admin-nav-item">
+                    <span class="icon">📈</span>
+                    <span>Reports</span>
+                </a>
+                <a href="/admin/pending-approvals.html" class="admin-nav-item">
+                    <span class="icon">⚠️</span>
+                    <span>Pending Approvals</span>
+                    <span class="badge" id="approvalsBadge" style="background:#f39c12;color:white;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:auto;display:none;">0</span>
+                </a>
+                <a href="/admin/pending-registrations.html" class="admin-nav-item">
+                    <span class="icon">⏳</span>
+                    <span>Pending Registrations</span>
+                    <span class="badge" id="pendingBadge" style="background:#e74c3c;color:white;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:auto;display:none;">0</span>
+                </a>
+                <a href="/admin/logs.html" class="admin-nav-item">
+                    <span class="icon">📝</span>
+                    <span>Activity Logs</span>
+                </a>
+                <a href="/admin/settings.html" class="admin-nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="admin-user">
+                <div class="admin-user-info">
+                    <strong id="username">Loading...</strong>
+                    <small id="userEmail">admin@system.local</small>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <header class="content-header">
+                <div>
+                    <h2 class="page-title">All Tenants</h2>
+                    <p class="page-subtitle">Manage tenant users across all companies</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="loadData()">Refresh</button>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <!-- Filters -->
+                <div class="filter-section" style="margin-bottom: 30px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <h3 style="font-size: 16px; font-weight: 600; color: #2c3e50; margin-bottom: 20px;">Filters</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label style="display: block; font-size: 14px; font-weight: 500; color: #555; margin-bottom: 5px;">Company</label>
+                            <select id="filterCompany" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: none">
+                                <option value="">All Companies</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 14px; font-weight: 500; color: #555; margin-bottom: 5px;">Status</label>
+                            <select id="filterStatus" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: none">
+                                <option value="">All Statuses</option>
+                                <option value="1">Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 14px; font-weight: 500; color: #555; margin-bottom: 5px;">Search</label>
+                            <input type="text" id="filterSearch" placeholder="Search name, username, email..." style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button onclick="applyFilters()" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                            Apply Filters
+                        </button>
+                        <button onclick="resetFilters()" style="background: #95a5a6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Statistics Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Tenants</div>
+                        <div class="stat-value" id="totalCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active</div>
+                        <div class="stat-value" id="activeCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Inactive</div>
+                        <div class="stat-value" id="inactiveCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Unassigned</div>
+                        <div class="stat-value" id="unassignedCount">0</div>
+                    </div>
+                </div>
+
+                <!-- Tenants Table -->
+                <div class="data-table-container">
+                    <table class="data-table" style="table-layout: fixed; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">ID</th>
+                                <th style="width: 150px;">Full Name</th>
+                                <th style="width: 120px;">Username</th>
+                                <th style="width: 180px;">Email</th>
+                                <th style="width: 150px;">Company</th>
+                                <th style="width: 140px;">Last Login</th>
+                                <th style="width: 80px;">Status</th>
+                                <th style="width: 120px; text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenantsContainer">
+                            <tr>
+                                <td colspan="8" class="loading-cell">
+                                    <div class="loading-spinner"></div>
+                                    Loading tenants...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Pagination Controls -->
+                    <div id="paginationControls" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="color: #555; font-size: 14px;">
+                            Showing <strong id="showingStart">0</strong> to <strong id="showingEnd">0</strong> of <strong id="showingTotal">0</strong> tenants
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="prevBtn" onclick="previousPage()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" disabled>
+                                ← Previous
+                            </button>
+                            <span id="pageInfo" style="display: flex; align-items: center; padding: 0 15px; color: #555; font-weight: 600;"></span>
+                            <button id="nextBtn" onclick="nextPage()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" disabled>
+                                Next →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        console.log('[ADMIN TENANTS] Starting...');
+
+        let allTenants = [];
+        let filteredTenants = [];
+        let currentPage = 1;
+        const itemsPerPage = 5;
+
+        // Check authentication
+        fetch('/php/api/auth/session.php')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success || data.data.user.role !== 'admin') {
+                    window.location.replace('/admin/login.html');
+                    return;
+                }
+
+                document.getElementById('username').textContent = data.data.user.full_name;
+                document.getElementById('userEmail').textContent = data.data.user.email;
+
+                loadData();
+            })
+            .catch(error => {
+                console.error('[ADMIN TENANTS] Session error:', error);
+                window.location.replace('/admin/login.html');
+            });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            fetch('/php/api/auth/logout.php', { method: 'POST' })
+                .then(() => window.location.replace('/admin/login.html'));
+        });
+
+        // Load data
+        function loadData() {
+            console.log('[ADMIN TENANTS] Loading data...');
+
+            // Show loading state
+            const container = document.getElementById('tenantsContainer');
+            container.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: #3498db;"><div class="loading-spinner"></div> Loading tenants...</td></tr>';
+
+            Promise.all([
+                fetch('/php/api/admin/tenants.php?limit=100').then(r => r.json()),
+                fetch('/php/api/companies/list.php').then(r => r.json())
+            ])
+            .then(([tenants, companies]) => {
+                if (tenants.success) {
+                    allTenants = tenants.data || [];
+                    filteredTenants = [...allTenants];
+                    renderTenants();
+                    updateStatistics();
+                    console.log('[ADMIN TENANTS] ✅ Tenants loaded successfully');
+                }
+
+                if (companies.success) {
+                    const companySelect = document.getElementById('filterCompany');
+                    // Clear existing options except "All Companies"
+                    companySelect.innerHTML = '<option value="">All Companies</option>';
+                    companies.data.forEach(c => {
+                        const option = document.createElement('option');
+                        option.value = c.company_name;
+                        option.textContent = c.company_name;
+                        companySelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('[ADMIN TENANTS] Load error:', error);
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">
+                            <strong>Error loading tenants:</strong><br>
+                            ${error.message}<br>
+                            <button onclick="loadData()" style="margin-top: 10px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Try Again
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Render tenants
+        function renderTenants() {
+            const container = document.getElementById('tenantsContainer');
+
+            if (filteredTenants.length === 0) {
+                container.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">No tenants found</td></tr>';
+                document.getElementById('paginationControls').style.display = 'none';
+                return;
+            }
+
+            // Pagination logic
+            const totalPages = Math.ceil(filteredTenants.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredTenants.length);
+            const pageItems = filteredTenants.slice(startIndex, endIndex);
+
+            // Render table rows
+            container.innerHTML = pageItems.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td><strong>${u.full_name}</strong></td>
+                    <td>${u.username}</td>
+                    <td>${u.email}</td>
+                    <td>${u.company_name || '<em>No Company</em>'}</td>
+                    <td>${u.last_login ? new Date(u.last_login).toLocaleString() : '<em>Never</em>'}</td>
+                    <td style="text-align: center;">
+                        <span class="badge" style="background: ${u.is_active ? '#27ae60' : '#95a5a6'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">
+                            ${u.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        ${u.is_active ? `
+                            <button class="btn btn-secondary" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-size: 13px;"
+                                    onclick="deactivateTenant(${u.id}, '${u.full_name.replace(/'/g, "\\'")}')">
+                                Deactivate
+                            </button>
+                        ` : `
+                            <button class="btn btn-secondary" style="background: #27ae60; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-size: 13px;"
+                                    onclick="activateTenant(${u.id}, '${u.full_name.replace(/'/g, "\\'")}', ${u.company_id || 'null'}, '${(u.company_name || 'No Company').replace(/'/g, "\\'")}', ${u.company_is_active || 0})">
+                                Activate
+                            </button>
+                        `}
+                    </td>
+                </tr>
+            `).join('');
+
+            // Update pagination controls
+            document.getElementById('paginationControls').style.display = 'flex';
+            document.getElementById('showingStart').textContent = startIndex + 1;
+            document.getElementById('showingEnd').textContent = endIndex;
+            document.getElementById('showingTotal').textContent = filteredTenants.length;
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+
+            // Enable/disable buttons
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+        }
+
+        // Pagination functions
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTenants();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredTenants.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTenants();
+            }
+        }
+
+        // Update statistics
+        function updateStatistics() {
+            const total = filteredTenants.length;
+            const active = filteredTenants.filter(t => t.is_active).length;
+            const inactive = filteredTenants.filter(t => !t.is_active).length;
+            const unassigned = filteredTenants.filter(t => !t.company_name).length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('activeCount').textContent = active;
+            document.getElementById('inactiveCount').textContent = inactive;
+            document.getElementById('unassignedCount').textContent = unassigned;
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const company = document.getElementById('filterCompany').value;
+            const status = document.getElementById('filterStatus').value;
+            const search = document.getElementById('filterSearch').value.toLowerCase();
+
+            filteredTenants = allTenants.filter(t => {
+                if (company && t.company_name !== company) return false;
+                if (status === '1' && !t.is_active) return false;
+                if (status === '0' && t.is_active) return false;
+                if (search) {
+                    const searchStr = `${t.full_name} ${t.username} ${t.email}`.toLowerCase();
+                    if (!searchStr.includes(search)) return false;
+                }
+                return true;
+            });
+
+            currentPage = 1; // Reset to first page
+            renderTenants();
+            updateStatistics();
+        }
+
+        // Reset filters
+        function resetFilters() {
+            document.getElementById('filterCompany').value = '';
+            document.getElementById('filterStatus').value = '';
+            document.getElementById('filterSearch').value = '';
+            filteredTenants = [...allTenants];
+            currentPage = 1; // Reset to first page
+            renderTenants();
+            updateStatistics();
+        }
+
+        // Deactivate tenant - Enhanced with reason
+        async function deactivateTenant(userId, fullName) {
+            // Use custom notification to ask for reason
+            showWarning(
+                '⚠️ Deactivate Tenant',
+                `<p>You are about to deactivate <strong>${fullName}</strong>.</p>
+                <p style="margin: 15px 0; padding: 12px; background: #fff3cd; border-left: 4px solid #f39c12; border-radius: 4px;">
+                    <strong>⚠️ Important:</strong><br>
+                    • The tenant will remain in their company<br>
+                    • They cannot access the system until reactivated<br>
+                    • They will see a deactivation message on login
+                </p>
+                <div style="margin-top: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Reason for Deactivation: <span style="color: red;">*</span></label>
+                    <textarea id="deactivationReasonInput" rows="3" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;" placeholder="Enter reason (required)..."></textarea>
+                </div>`,
+                async () => {
+                    const reason = document.getElementById('deactivationReasonInput')?.value.trim();
+
+                    if (!reason) {
+                        showError('Reason Required', 'Please provide a reason for deactivating this tenant.');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/php/api/admin/toggle-tenant.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                user_id: userId,
+                                is_active: 0,
+                                deactivation_reason: reason
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            showSuccess(
+                                '✅ Tenant Deactivated',
+                                `<strong>${fullName}</strong> has been deactivated.<br><br><strong>Reason:</strong> ${reason}`,
+                                () => loadData()
+                            );
+                        } else {
+                            showError('Deactivation Failed', data.message || 'Unable to deactivate tenant');
+                        }
+                    } catch (error) {
+                        console.error('[ADMIN TENANTS] Deactivate error:', error);
+                        showError('Deactivation Failed', error.message);
+                    }
+                }
+            );
+        }
+
+        // Activate tenant - Enhanced with company reassignment and validation
+        async function activateTenant(userId, fullName, currentCompanyId, currentCompanyName, companyIsActive) {
+            try {
+                // Check if current company is deactivated
+                if (currentCompanyId && companyIsActive === 0) {
+                    // Company is deactivated - must choose different company
+                    showWarning(
+                        '⚠️ Company Deactivated',
+                        `<p><strong>${fullName}</strong> is assigned to <strong>${currentCompanyName}</strong>, which is currently <strong style="color: #e74c3c;">DEACTIVATED</strong>.</p>
+                        <p style="margin: 15px 0; padding: 12px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 4px;">
+                            <strong>⚠️ Action Required:</strong><br>
+                            You must either:<br>
+                            1. Activate the company first, OR<br>
+                            2. Reassign this tenant to an active company
+                        </p>
+                        <p style="margin-top: 15px; text-align: center;">
+                            <button onclick="closeNotification(); window.location.href='/admin/companies.html';" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 10px;">
+                                Go to Companies Page
+                            </button>
+                            <button onclick="closeNotification(); showReassignModal(${userId}, '${fullName.replace(/'/g, "\\'")}');" style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                Reassign to Active Company
+                            </button>
+                        </p>`,
+                        null
+                    );
+                    return;
+                }
+
+                // Load companies for selection
+                const companiesResponse = await fetch('/php/api/companies/list.php');
+                const companiesData = await companiesResponse.json();
+
+                if (!companiesData.success) {
+                    showError('Error', 'Failed to load companies list.');
+                    return;
+                }
+
+                // Filter only active companies
+                const companies = companiesData.data.filter(c => c.is_active === 1 || c.is_active === '1');
+
+                if (companies.length === 0) {
+                    showError('No Active Companies', 'There are no active companies available. Please activate a company first.');
+                    return;
+                }
+
+                // Create company selection options
+                let companyOptions = '';
+                if (currentCompanyId && companyIsActive === 1) {
+                    companyOptions += `<option value="${currentCompanyId}" selected>✅ Keep in ${currentCompanyName}</option>`;
+                }
+
+                companies.forEach(company => {
+                    if (!currentCompanyId || company.id !== parseInt(currentCompanyId)) {
+                        companyOptions += `<option value="${company.id}">➡️ Reassign to ${company.company_name}</option>`;
+                    }
+                });
+
+                // Show selection modal
+                showNotification({
+                    type: 'success',
+                    title: '✅ Activate Tenant',
+                    subtitle: 'Company Assignment',
+                    message: `
+                        <p>You are about to activate <strong>${fullName}</strong>.</p>
+                        <div style="margin: 20px 0;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Select Company: <span style="color: red;">*</span></label>
+                            <select id="companySelectActivate" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                ${companyOptions}
+                            </select>
+                            <p style="margin-top: 8px; font-size: 13px; color: #6b7280;">
+                                💡 <strong>Keep:</strong> Retain in current company<br>
+                                💡 <strong>Reassign:</strong> Move to a different company
+                            </p>
+                        </div>
+                        <p style="margin-top: 15px; padding: 12px; background: #d4edda; border-left: 4px solid #27ae60; border-radius: 4px; font-size: 13px;">
+                            ✅ The tenant will be able to access the system immediately after activation.
+                        </p>
+                    `,
+                    buttons: [
+                        {
+                            text: 'Cancel',
+                            type: 'secondary',
+                            onClick: closeNotification
+                        },
+                        {
+                            text: '✅ Activate Tenant',
+                            type: 'success',
+                            onClick: () => confirmActivation(userId, fullName)
+                        }
+                    ]
+                });
+            } catch (error) {
+                console.error('[ADMIN TENANTS] Activate error:', error);
+                showError('Activation Failed', 'Unable to load companies. ' + error.message);
+            }
+        }
+
+        // Show reassign modal (for deactivated company case)
+        async function showReassignModal(userId, fullName) {
+            try {
+                const companiesResponse = await fetch('/php/api/companies/list.php');
+                const companiesData = await companiesResponse.json();
+
+                if (!companiesData.success) {
+                    showError('Error', 'Failed to load companies list.');
+                    return;
+                }
+
+                const companies = companiesData.data.filter(c => c.is_active === 1 || c.is_active === '1');
+
+                if (companies.length === 0) {
+                    showError('No Active Companies', 'There are no active companies available. Please activate a company first.');
+                    return;
+                }
+
+                const companyOptions = companies.map(c =>
+                    `<option value="${c.id}">➡️ ${c.company_name}</option>`
+                ).join('');
+
+                showNotification({
+                    type: 'success',
+                    title: '✅ Reassign & Activate',
+                    subtitle: 'Select Active Company',
+                    message: `
+                        <p>Reassign <strong>${fullName}</strong> to an active company:</p>
+                        <div style="margin: 20px 0;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Active Company: <span style="color: red;">*</span></label>
+                            <select id="companySelectActivate" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                ${companyOptions}
+                            </select>
+                        </div>
+                    `,
+                    buttons: [
+                        {
+                            text: 'Cancel',
+                            type: 'secondary',
+                            onClick: closeNotification
+                        },
+                        {
+                            text: '✅ Reassign & Activate',
+                            type: 'success',
+                            onClick: () => confirmActivation(userId, fullName)
+                        }
+                    ]
+                });
+            } catch (error) {
+                showError('Error', error.message);
+            }
+        }
+
+        // Confirm activation
+        async function confirmActivation(userId, fullName) {
+            const companyId = document.getElementById('companySelectActivate')?.value;
+
+            if (!companyId) {
+                showError('Company Required', 'Please select a company.');
+                return;
+            }
+
+            closeNotification();
+
+            try {
+                const response = await fetch('/php/api/admin/toggle-tenant.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        is_active: 1,
+                        company_id: parseInt(companyId),
+                        clear_deactivation_reason: true
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess(
+                        '✅ Tenant Activated',
+                        `<strong>${fullName}</strong> has been activated and can now access the system.`,
+                        () => loadData()
+                    );
+                } else {
+                    showError('Activation Failed', data.message || 'Unable to activate tenant');
+                }
+            } catch (error) {
+                console.error('[ADMIN TENANTS] Confirm activation error:', error);
+                showError('Activation Failed', error.message);
+            }
+        }
+    </script>
+</body>
+</html>
+

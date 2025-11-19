@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Registration - Accounting System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f1419 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: grid 20s linear infinite;
+        }
+
+        @keyframes grid {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .registration-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
+        }
+
+        .registration-card {
+            background: rgba(22, 33, 62, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 60px 50px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+
+        /* Security badge */
+        .security-badge {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+            color: white;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .registration-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .lock-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 8px 20px rgba(231, 76, 60, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .lock-icon::before {
+            content: '🛡️';
+            font-size: 28px;
+            filter: grayscale(100%) brightness(200%);
+        }
+
+        .registration-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .registration-subtitle {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Steps */
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .step-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .step-dot.active {
+            background: #e74c3c;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+            transform: scale(1.2);
+        }
+
+        .step-dot.completed {
+            background: #27ae60;
+        }
+
+        .step-title {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Security Warning Box */
+        .security-warning {
+            background: rgba(231, 76, 60, 0.15);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 16px 18px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .security-warning strong {
+            color: #ff6b6b;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        /* Code Input */
+        .code-input-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .code-digit {
+            width: 50px;
+            height: 60px;
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #ffffff;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .code-digit:focus {
+            background: rgba(0, 0, 0, 0.4);
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.1);
+        }
+
+        .code-digit.filled {
+            border-color: #27ae60;
+            background: rgba(39, 174, 96, 0.1);
+        }
+
+        /* Form Groups */
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 16px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .form-control:focus {
+            outline: none;
+            background: rgba(0, 0, 0, 0.4);
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.1);
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        /* Password Strength */
+        .password-strength {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            width: 0;
+            transition: all 0.3s ease;
+        }
+
+        .password-strength-bar.weak {
+            width: 33%;
+            background: #e74c3c;
+        }
+
+        .password-strength-bar.medium {
+            width: 66%;
+            background: #f39c12;
+        }
+
+        .password-strength-bar.strong {
+            width: 100%;
+            background: #27ae60;
+        }
+
+        .password-hint {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 5px;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 10px;
+            box-shadow: 0 8px 20px rgba(231, 76, 60, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Messages */
+        .message {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.error {
+            background: rgba(231, 76, 60, 0.15);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            color: #ff6b6b;
+        }
+
+        .message.success {
+            background: rgba(39, 174, 96, 0.15);
+            border: 1px solid rgba(39, 174, 96, 0.5);
+            color: #5dff8f;
+        }
+
+        .message.info {
+            background: rgba(52, 152, 219, 0.15);
+            border: 1px solid rgba(52, 152, 219, 0.5);
+            color: #74b9ff;
+        }
+
+        /* Links */
+        .link-group {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .link-group a {
+            color: rgba(255, 255, 255, 0.5);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .link-group a:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .warning-text {
+            text-align: center;
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="registration-container">
+        <div class="registration-card">
+            <div class="security-badge">Restricted Access</div>
+
+            <div class="registration-header">
+                <div class="lock-icon"></div>
+                <h1 class="registration-title">Admin Registration</h1>
+                <p class="registration-subtitle">Secure Administrator Setup</p>
+            </div>
+
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="step-dot active" id="dot1"></div>
+                <div class="step-dot" id="dot2"></div>
+            </div>
+
+            <!-- Messages -->
+            <div class="message" id="messageBox"></div>
+
+            <!-- Step 1: Security Code Verification -->
+            <div class="step active" id="step1">
+                <div class="step-title">Step 1: Security Verification</div>
+
+                <div class="security-warning">
+                    <strong>⚠️ Authorization Required</strong>
+                    Administrator registration requires a valid security code.
+                    Enter the 6-digit code to proceed. If you don't have a code,
+                    contact the system administrator.
+                </div>
+
+                <div class="code-input-container">
+                    <input type="text" class="code-digit" id="digit1" maxlength="1" autofocus>
+                    <input type="text" class="code-digit" id="digit2" maxlength="1">
+                    <input type="text" class="code-digit" id="digit3" maxlength="1">
+                    <input type="text" class="code-digit" id="digit4" maxlength="1">
+                    <input type="text" class="code-digit" id="digit5" maxlength="1">
+                    <input type="text" class="code-digit" id="digit6" maxlength="1">
+                </div>
+
+                <button class="btn-primary" id="verifyCodeBtn" disabled>
+                    Verify Security Code
+                </button>
+
+                <button class="btn-secondary" onclick="window.location.href='/admin/login.html'">
+                    ← Back to Login
+                </button>
+            </div>
+
+            <!-- Step 2: Registration Form -->
+            <div class="step" id="step2">
+                <div class="step-title">Step 2: Create Admin Account</div>
+
+                <form id="registrationForm" autocomplete="off">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" id="fullName" class="form-control" placeholder="Enter full name" required autocomplete="off">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" id="username" class="form-control" placeholder="Admin ID" required autocomplete="off">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="email" class="form-control" placeholder="Email address" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" id="password" class="form-control" placeholder="Enter secure password" required autocomplete="new-password">
+                        <div class="password-strength">
+                            <div class="password-strength-bar" id="strengthBar"></div>
+                        </div>
+                        <div class="password-hint" id="passwordHint">
+                            Minimum 8 characters required
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Confirm Password</label>
+                        <input type="password" id="confirmPassword" class="form-control" placeholder="Re-enter password" required autocomplete="new-password">
+                    </div>
+
+                    <div class="button-group">
+                        <button type="button" class="btn-secondary" onclick="backToStep1()" style="flex: 0 0 100px;">
+                            ← Back
+                        </button>
+                        <button type="submit" class="btn-primary" style="flex: 1;">
+                            Create Account
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="warning-text">
+                ⚠️ Authorized Personnel Only
+            </div>
+
+            <div class="link-group">
+                <a href="/admin/login.html">← Back to Administrator Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('[ADMIN REGISTRATION] Starting...');
+
+        // Code input handling
+        const codeDigits = document.querySelectorAll('.code-digit');
+        const verifyBtn = document.getElementById('verifyCodeBtn');
+
+        codeDigits.forEach((digit, index) => {
+            digit.addEventListener('input', (e) => {
+                const value = e.target.value;
+
+                // Only allow numbers
+                if (value && !/^\d$/.test(value)) {
+                    e.target.value = '';
+                    return;
+                }
+
+                // Add filled class
+                if (value) {
+                    e.target.classList.add('filled');
+                    // Move to next digit
+                    if (index < codeDigits.length - 1) {
+                        codeDigits[index + 1].focus();
+                    }
+                } else {
+                    e.target.classList.remove('filled');
+                }
+
+                // Check if all digits filled
+                checkCodeComplete();
+            });
+
+            // Handle backspace
+            digit.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    codeDigits[index - 1].focus();
+                }
+            });
+
+            // Handle paste
+            digit.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pastedData = e.clipboardData.getData('text');
+                const digits = pastedData.replace(/\D/g, '').slice(0, 6);
+
+                digits.split('').forEach((num, i) => {
+                    if (codeDigits[i]) {
+                        codeDigits[i].value = num;
+                        codeDigits[i].classList.add('filled');
+                    }
+                });
+
+                checkCodeComplete();
+            });
+        });
+
+        function checkCodeComplete() {
+            const allFilled = Array.from(codeDigits).every(digit => digit.value !== '');
+            verifyBtn.disabled = !allFilled;
+        }
+
+        // Verify code (dummy - accepts any 6 digits)
+        verifyBtn.addEventListener('click', () => {
+            const code = Array.from(codeDigits).map(d => d.value).join('');
+
+            showMessage('info', '🔍 Verifying security code...');
+
+            // Simulate verification (demo mode)
+            setTimeout(() => {
+                showMessage('success', '✅ Security code verified successfully.');
+
+                setTimeout(() => {
+                    goToStep2();
+                }, 1000);
+            }, 1500);
+        });
+
+        function goToStep2() {
+            document.getElementById('step1').classList.remove('active');
+            document.getElementById('step2').classList.add('active');
+            document.getElementById('dot1').classList.remove('active');
+            document.getElementById('dot1').classList.add('completed');
+            document.getElementById('dot2').classList.add('active');
+            hideMessage();
+        }
+
+        function backToStep1() {
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step1').classList.add('active');
+            document.getElementById('dot2').classList.remove('active');
+            document.getElementById('dot1').classList.remove('completed');
+            document.getElementById('dot1').classList.add('active');
+        }
+
+        // Password strength checker
+        const passwordInput = document.getElementById('password');
+        const strengthBar = document.getElementById('strengthBar');
+        const passwordHint = document.getElementById('passwordHint');
+
+        passwordInput.addEventListener('input', (e) => {
+            const password = e.target.value;
+            let strength = 0;
+
+            if (password.length >= 8) strength++;
+            if (password.length >= 12) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/\d/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+            strengthBar.className = 'password-strength-bar';
+
+            if (strength <= 2) {
+                strengthBar.classList.add('weak');
+                passwordHint.textContent = '⚠️ Weak password - add more characters';
+                passwordHint.style.color = '#ff6b6b';
+            } else if (strength <= 3) {
+                strengthBar.classList.add('medium');
+                passwordHint.textContent = '👍 Medium strength - consider special characters';
+                passwordHint.style.color = '#f39c12';
+            } else {
+                strengthBar.classList.add('strong');
+                passwordHint.textContent = '✅ Strong password';
+                passwordHint.style.color = '#5dff8f';
+            }
+        });
+
+        // Form submission - REAL API CALL
+        document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const fullName = document.getElementById('fullName').value.trim();
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Get verification code from the digit inputs (from step 1)
+            const verificationCode = Array.from(codeDigits).map(d => d.value).join('');
+
+            // Validation
+            if (!fullName || !username || !email || !password) {
+                showMessage('error', '❌ All fields are required.');
+                return;
+            }
+
+            if (password.length < 8) {
+                showMessage('error', '❌ Password must be at least 8 characters.');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showMessage('error', '❌ Passwords do not match.');
+                return;
+            }
+
+            // Show loading
+            showMessage('info', '🔄 Creating administrator account...');
+
+            try {
+                const response = await fetch('/php/api/admin/auth/register.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        full_name: fullName,
+                        username: username,
+                        email: email,
+                        password: password,
+                        verification_code: verificationCode
+                    })
+                });
+
+                const data = await response.json();
+                console.log('[ADMIN REGISTRATION] Response:', data);
+
+                if (data.success) {
+                    showMessage('success', '✅ Admin account created successfully!');
+
+                    console.log('[ADMIN REGISTRATION] New admin created:', data.data);
+
+                    // Redirect to login after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/admin/login.html';
+                    }, 2000);
+                } else {
+                    showMessage('error', '❌ ' + data.message);
+                }
+            } catch (error) {
+                console.error('[ADMIN REGISTRATION] Error:', error);
+                showMessage('error', '❌ Registration failed. Please try again.');
+            }
+        });
+
+        // Message helpers
+        function showMessage(type, text) {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.className = `message ${type} show`;
+            messageBox.textContent = text;
+        }
+
+        function hideMessage() {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.classList.remove('show');
+        }
+
+        console.log('[ADMIN REGISTRATION] ✅ Ready - Connected to backend API');
+    </script>
+</body>
+</html>
+

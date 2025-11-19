@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Deactivated - Accounting System</title>
+
+    <!-- Cache Control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 48px;
+            text-align: center;
+        }
+
+        .icon {
+            width: 80px;
+            height: 80px;
+            background: #fef3c7;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 40px;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #1f2937;
+            margin-bottom: 16px;
+            font-weight: 700;
+        }
+
+        .user-info {
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .user-info p {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .user-info strong {
+            color: #1f2937;
+            font-size: 16px;
+        }
+
+        .reason-box {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 24px 0;
+            text-align: left;
+        }
+
+        .reason-box h3 {
+            color: #991b1b;
+            font-size: 16px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .reason-box p {
+            color: #7f1d1d;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        .message {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .support-box {
+            background: #eff6ff;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 32px;
+        }
+
+        .support-box h3 {
+            color: #1e40af;
+            font-size: 18px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .support-box p {
+            color: #1e3a8a;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .support-box a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .support-box a:hover {
+            text-decoration: underline;
+        }
+
+        .logout-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 24px;
+        }
+
+        .logout-btn:hover {
+            background: #5568d3;
+        }
+
+        .status-badge {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">⚠️</div>
+
+        <div class="status-badge">Account Deactivated</div>
+
+        <h1>Your Account Has Been Deactivated</h1>
+
+        <div class="user-info">
+            <p>Logged in as:</p>
+            <strong id="userName">Loading...</strong><br>
+            <p style="margin-top: 8px;">Company: <strong id="companyName">Loading...</strong></p>
+        </div>
+
+        <div class="reason-box">
+            <h3>📋 Reason for Deactivation:</h3>
+            <p id="deactivationReason">Loading...</p>
+        </div>
+
+        <p class="message">
+            Your account has been temporarily deactivated by the administrator.
+            You are still associated with your company but cannot access the system at this time.
+            <br><br>
+            <strong>Please wait for administrator action.</strong> Your account may be reactivated or reassigned to a different company.
+        </p>
+
+        <div class="support-box">
+            <h3>🆘 Need Help?</h3>
+            <p>Contact your system administrator for more information.</p>
+            <p>Email: <a href="mailto:admin@accountingsystem.com">admin@accountingsystem.com</a></p>
+            <p>Support: <a href="tel:+1234567890">+1 (234) 567-890</a></p>
+        </div>
+
+        <button class="logout-btn" onclick="logout()">Return to Login</button>
+    </div>
+
+    <script>
+        console.log('[ACCOUNT DEACTIVATED] Page loaded');
+
+        // Check session and load user info
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/php/api/auth/session.php');
+                const data = await response.json();
+
+                console.log('[ACCOUNT DEACTIVATED] Session data:', data);
+
+                if (!data.success || !data.data || !data.data.user) {
+                    console.log('[ACCOUNT DEACTIVATED] No session, redirecting to login');
+                    window.location.replace('/tenant/login.html');
+                    return;
+                }
+
+                const user = data.data.user;
+                const company = data.data.company;
+
+                // Show user info
+                document.getElementById('userName').textContent = user.full_name || user.username;
+                document.getElementById('companyName').textContent = company?.company_name || 'N/A';
+                document.getElementById('deactivationReason').textContent = user.deactivation_reason || 'No reason provided.';
+
+                // If user is active, redirect to dashboard
+                if (user.is_active === 1 || user.is_active === '1' || user.is_active === true) {
+                    console.log('[ACCOUNT DEACTIVATED] User is active, redirecting to dashboard');
+                    window.location.replace('/tenant/dashboard.html');
+                }
+            } catch (error) {
+                console.error('[ACCOUNT DEACTIVATED] Error loading user info:', error);
+                window.location.replace('/tenant/login.html');
+            }
+        }
+
+        function logout() {
+            fetch('/php/api/auth/logout.php', { method: 'POST' })
+                .then(() => {
+                    window.location.replace('/tenant/login.html');
+                })
+                .catch(() => {
+                    window.location.replace('/tenant/login.html');
+                });
+        }
+
+        // Load on page ready
+        loadUserInfo();
+    </script>
+</body>
+</html>
+

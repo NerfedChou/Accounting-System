@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PAGE_TITLE}} - Accounting System</title>
+
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="/shared/css/reset.css">
+    <link rel="stylesheet" href="/shared/css/variables.css">
+    <link rel="stylesheet" href="/shared/css/components.css">
+    <link rel="stylesheet" href="/shared/css/utilities.css">
+
+    <!-- Page-specific CSS will be added here -->
+    <!-- {{PAGE_CSS}} -->
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="header">
+        <div class="header__container container">
+            <div class="header__brand">
+                <h1 class="header__logo">Accounting System</h1>
+            </div>
+
+            <nav class="header__nav">
+                <!-- Navigation will be injected based on role -->
+                <div id="navigation"></div>
+            </nav>
+
+            <div class="header__user">
+                <span class="header__username" id="username">Loading...</span>
+                <button class="btn btn--secondary btn--sm" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main">
+        <div class="main__container container">
+            <!-- Alert/Toast Container -->
+            <div id="alertContainer"></div>
+
+            <!-- Page Content will be injected here -->
+            <div class="main__content">
+                {{CONTENT}}
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer__container container">
+            <p class="footer__text">&copy; 2025 Accounting System. School Project.</p>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay (will be controlled by JS) -->
+    <div id="loadingOverlay" class="hidden"></div>
+
+    <!-- Shared JavaScript -->
+    <script type="module" src="/shared/js/utils.js"></script>
+    <script type="module" src="/shared/js/api.js"></script>
+    <script type="module" src="/shared/js/validation.js"></script>
+    <script type="module" src="/shared/js/session.js"></script>
+
+    <!-- Page-specific JavaScript will be added here -->
+    <!-- {{PAGE_JS}} -->
+
+    <script type="module">
+        import session from '/shared/js/session.js';
+
+        // Initialize session and load user info
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await session.init();
+
+                if (session.isAuthenticated()) {
+                    const user = session.getUser();
+                    document.getElementById('username').textContent = user.full_name;
+
+                    // Load appropriate navigation
+                    loadNavigation(user.role);
+                } else {
+                    // Not authenticated, redirect will be handled by page-specific JS
+                    console.warn('User not authenticated');
+                }
+
+                // Logout handler
+                document.getElementById('logoutBtn').addEventListener('click', async () => {
+                    await session.logout();
+                });
+
+            } catch (error) {
+                console.error('Session initialization error:', error);
+            }
+        });
+
+        // Load navigation based on role
+        function loadNavigation(role) {
+            const nav = document.getElementById('navigation');
+
+            if (role === 'admin') {
+                nav.innerHTML = `
+                    <a href="/admin/dashboard.html" class="nav__link">Dashboard</a>
+                    <a href="/admin/companies.html" class="nav__link">Companies</a>
+                `;
+            } else if (role === 'tenant') {
+                nav.innerHTML = `
+                    <a href="/tenant/dashboard.html" class="nav__link">Dashboard</a>
+                    <a href="/tenant/accounts.html" class="nav__link">Accounts</a>
+                    <a href="/tenant/transactions.html" class="nav__link">Transactions</a>
+                    <a href="/tenant/reports.html" class="nav__link">Reports</a>
+                    <a href="/tenant/company.html" class="nav__link">Company</a>
+                    <a href="/tenant/settings.html" class="nav__link">Settings</a>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
+

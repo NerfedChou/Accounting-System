@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Accounting System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px 20px;
+            overflow-y: auto;
+        }
+
+        .register-container {
+            max-width: 520px;
+            margin: 0 auto;
+        }
+
+        .register-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 5px 18px;
+            border-radius: 15px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 24px;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .field {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .required {
+            color: #e74c3c;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #f8f9fa;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .terms {
+            display: flex;
+            align-items: start;
+            gap: 8px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .terms input {
+            width: auto;
+            margin-top: 2px;
+        }
+
+        .terms label {
+            font-size: 12px;
+            font-weight: normal;
+            margin: 0;
+        }
+
+        .terms a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            text-align: center;
+        }
+
+        .success h3 {
+            margin-bottom: 8px;
+        }
+
+        .link {
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+            font-size: 13px;
+        }
+
+        .link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .strength {
+            font-size: 11px;
+            margin-top: 3px;
+            display: none;
+        }
+
+        .weak { color: #e74c3c; display: block; }
+        .medium { color: #f39c12; display: block; }
+        .strong { color: #27ae60; display: block; }
+
+        @media (max-width: 600px) {
+            .row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-card">
+            <div class="badge">Join Us Today</div>
+
+            <div class="header">
+                <div class="icon">📝</div>
+                <h1>Create Account</h1>
+                <p class="subtitle">Start your accounting journey</p>
+            </div>
+
+            <div id="success" class="message success"></div>
+            <div id="error" class="message error"></div>
+
+            <form id="form" autocomplete="off">
+                <div class="row">
+                    <div class="field">
+                        <label>Full Name <span class="required">*</span></label>
+                        <input type="text" id="fullName" required autocomplete="off">
+                    </div>
+                    <div class="field">
+                        <label>Email <span class="required">*</span></label>
+                        <input type="email" id="email" required autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="field">
+                        <label>Username <span class="required">*</span></label>
+                        <input type="text" id="username" required autocomplete="off">
+                    </div>
+                    <div class="field">
+                        <label>Phone</label>
+                        <input type="tel" id="phone" autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="field">
+                        <label>Password <span class="required">*</span></label>
+                        <input type="password" id="password" required autocomplete="new-password">
+                        <div id="strength" class="strength"></div>
+                    </div>
+                    <div class="field">
+                        <label>Confirm Password <span class="required">*</span></label>
+                        <input type="password" id="confirm" required autocomplete="new-password">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Company Name</label>
+                    <input type="text" id="company">
+                </div>
+
+                <div class="field">
+                    <label>Business Type</label>
+                    <select id="businessType">
+                        <option value="">Select (optional)</option>
+                        <option>Sole Proprietorship</option>
+                        <option>Partnership</option>
+                        <option>Corporation</option>
+                        <option>LLC</option>
+                        <option>Non-Profit</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>Why are you registering?</label>
+                    <textarea id="notes"></textarea>
+                </div>
+
+                <div class="terms">
+                    <input type="checkbox" id="agree" required>
+                    <label for="agree">I agree to the <a href="#">Terms & Conditions</a></label>
+                </div>
+
+                <button type="submit" id="btn">Create Account</button>
+            </form>
+
+            <div class="link">
+                Already have an account? <a href="/tenant/login.html">Sign in here</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('form');
+        const errorDiv = document.getElementById('error');
+        const successDiv = document.getElementById('success');
+        const btn = document.getElementById('btn');
+
+        // Password strength
+        document.getElementById('password').addEventListener('input', (e) => {
+            const pwd = e.target.value;
+            const str = document.getElementById('strength');
+
+            if (!pwd) { str.style.display = 'none'; return; }
+
+            let score = 0;
+            if (pwd.length >= 6) score++;
+            if (pwd.length >= 10) score++;
+            if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+            if (/\d/.test(pwd)) score++;
+
+            str.className = 'strength';
+            if (score <= 2) {
+                str.className += ' weak';
+                str.textContent = '⚠️ Weak';
+            } else if (score === 3) {
+                str.className += ' medium';
+                str.textContent = '👍 Medium';
+            } else {
+                str.className += ' strong';
+                str.textContent = '✓ Strong';
+            }
+        });
+
+        // Form submit
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('confirm').value;
+            const phone = document.getElementById('phone').value.trim();
+            const company = document.getElementById('company').value.trim();
+            const businessType = document.getElementById('businessType').value;
+            const notes = document.getElementById('notes').value.trim();
+            const agree = document.getElementById('agree').checked;
+
+            // Validate
+            if (!fullName || !email || !username || !password) {
+                errorDiv.textContent = 'Please fill all required fields';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (username.length < 3) {
+                errorDiv.textContent = 'Username must be at least 3 characters';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (password.length < 6) {
+                errorDiv.textContent = 'Password must be at least 6 characters';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (password !== confirm) {
+                errorDiv.textContent = 'Passwords do not match';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (!agree) {
+                errorDiv.textContent = 'Please agree to Terms & Conditions';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+
+            try {
+                const res = await fetch('/php/api/auth/register.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        full_name: fullName,
+                        email: email,
+                        username: username,
+                        password: password,
+                        phone: phone || null,
+                        company_name_requested: company || null,
+                        business_type: businessType || null,
+                        registration_notes: notes || null
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    successDiv.innerHTML = `
+                        <h3>✅ Success!</h3>
+                        <p>Registration submitted for review.</p>
+                        <p>We'll notify you when approved.</p>
+                        <p style="margin-top:10px">
+                            <a href="/tenant/login.html" style="color:#667eea;font-weight:600">Go to Login →</a>
+                        </p>
+                    `;
+                    successDiv.style.display = 'block';
+                    form.style.display = 'none';
+                } else {
+                    errorDiv.textContent = data.message || 'Registration failed';
+                    errorDiv.style.display = 'block';
+                    btn.disabled = false;
+                    btn.textContent = 'Create Account';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Connection error. Please try again.';
+                errorDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Create Account';
+            }
+        });
+    </script>
+</body>
+</html>
+

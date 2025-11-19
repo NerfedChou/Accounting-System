@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Accounting System</title>
+
+    <!-- Prevent page caching -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Immediate session check - hide page until verified -->
+    <script>
+        // Hide page immediately
+        document.documentElement.style.visibility = 'hidden';
+
+        // Check session immediately
+        (function() {
+            fetch('/php/api/auth/session.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success || data.data.user.role !== 'tenant') {
+                        window.location.replace('/tenant/login.html');
+                        return;
+                    }
+
+                    const user = data.data.user;
+
+                    // Priority 1: Check registration status (pending/declined take precedence)
+                    const status = user.registration_status || 'approved';
+                    if (status === 'pending') {
+                        window.location.replace('/tenant/pending-approval.html');
+                        return;
+                    } else if (status === 'declined') {
+                        window.location.replace('/tenant/registration-declined.html');
+                        return;
+                    }
+
+                    // Priority 2: Check if account is deactivated (only for approved users)
+                    if (user.is_active === 0 || user.is_active === '0' || user.is_active === false) {
+                        window.location.replace('/tenant/account-deactivated.html');
+                        return;
+                    }
+
+                    // Show page only if authorized
+                    document.documentElement.style.visibility = 'visible';
+                })
+                .catch(() => {
+                    window.location.replace('/tenant/login.html');
+                });
+        })();
+    </script>
+
+    <link rel="stylesheet" href="/admin/assets/css/admin-professional.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div class="admin-brand">
+                <h1>Accounting System</h1>
+                <p class="admin-role" id="companyName">Loading...</p>
+            </div>
+
+            <!-- Logout Button - Easy Access -->
+            <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn-logout" id="logoutBtn" style="width: 100%; padding: 1rem;">Logout
+                </button>
+            </div>
+
+            <nav class="admin-nav">
+                <a href="/tenant/dashboard.html" class="admin-nav-item active">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tenant/accounts.html" class="admin-nav-item">
+                    <span class="icon">💰</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/tenant/transactions.html" class="admin-nav-item">
+                    <span class="icon">📝</span>
+                    <span>Transactions</span>
+                </a>
+                <a href="/tenant/reports.html" class="admin-nav-item">
+                    <span class="icon">📈</span>
+                    <span>Reports</span>
+                </a>
+                <a href="/tenant/company.html" class="admin-nav-item">
+                    <span class="icon">🏢</span>
+                    <span>Company</span>
+                </a>
+                <a href="/tenant/settings.html" class="admin-nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="admin-user">
+                <div class="admin-user-info">
+                    <strong id="username">Loading...</strong>
+                    <small id="userEmail">user@company.com</small>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <header class="content-header">
+                <div>
+                    <h2 class="page-title">Dashboard</h2>
+                    <p class="page-subtitle">Financial Overview</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="loadDashboard()">Refresh</button>
+                </div>
+            </header>
+
+            <div style="padding: 30px;">
+                <!-- 4 Chart Cards - Aligned with Reference.md -->
+                <div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
+                    <!-- Total Assets Chart -->
+                    <div style="background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="font-size: 14px; font-weight: 600; color: #2c3e50; margin: 0;">Total Assets</h3>
+                            <span style="font-size: 24px; font-weight: 700; color: #27ae60;" id="totalAssets">$0.00</span>
+                        </div>
+                        <div style="height: 300px; position: relative; display: flex; justify-content: center; align-items: center;">
+                            <canvas id="assetsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Total Liabilities Chart -->
+                    <div style="background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="font-size: 14px; font-weight: 600; color: #2c3e50; margin: 0;">Total Liabilities</h3>
+                            <span style="font-size: 24px; font-weight: 700; color: #e74c3c;" id="totalLiabilities">$0.00</span>
+                        </div>
+                        <div style="height: 300px; position: relative; justify-content: center; align-items: center; display: flex;">
+                            <canvas id="liabilitiesChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Total Equity Chart -->
+                    <div style="background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="font-size: 14px; font-weight: 600; color: #2c3e50; margin: 0;">Total Equity</h3>
+                            <span style="font-size: 24px; font-weight: 700; color: #3498db;" id="totalEquity">$0.00</span>
+                        </div>
+                        <div style="height: 300px; position: relative; display: flex; justify-content: center; align-items: center;">
+                            <canvas id="equityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Revenue vs Expenses Chart -->
+                    <div style="background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="font-size: 14px; font-weight: 600; color: #2c3e50; margin: 0;">Revenue vs Expenses</h3>
+                        </div>
+                        <div style="height: 300px; position: relative; display: flex; justify-content: center; align-items: center;">
+                            <canvas id="revenueExpensesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions - Modern List (Reference.md: not HTML table) -->
+                <h3 style="margin: 0 0 15px 0; font-size: 18px; font-weight: 600; color: #2c3e50;">Recent Transactions</h3>
+                <div style="background: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div class="list" id="recentTransactionsList">
+                        <div class="list__header" style="display: flex; padding: 15px 20px; border-bottom: 2px solid #ecf0f1; font-weight: 600; font-size: 12px; color: #7f8c8d;">
+                            <div style="flex: 0 0 140px;">Number</div>
+                            <div style="flex: 0 0 100px;">Date</div>
+                            <div style="flex: 2;">Description</div>
+                            <div style="flex: 0 0 120px; text-align: right;">Amount</div>
+                            <div style="flex: 0 0 100px; text-align: center;">Status</div>
+                        </div>
+                        <div id="transactionsContainer">
+                            <div style="padding: 40px; text-align: center; color: #7f8c8d;">
+                                <div class="loading-spinner" style="margin: 0 auto 15px;"></div>
+                                Loading transactions...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        console.log('[TENANT DASHBOARD] Starting...');
+
+        let charts = {
+            assets: null,
+            liabilities: null,
+            equity: null,
+            revenueExpenses: null
+        };
+
+        // Check authentication
+        fetch('/php/api/auth/session.php')
+            .then(response => response.json())
+            .then(data => {
+                console.log('[TENANT DASHBOARD] Session:', data);
+
+                if (!data.success) {
+                    window.location.href = '/tenant/login.html';
+                    return;
+                }
+
+                if (data.data.user.role !== 'tenant') {
+                    console.log('[TENANT DASHBOARD] Not tenant, redirecting to admin...');
+                    window.location.href = '/admin/dashboard.html';
+                    return;
+                }
+
+                // Check registration status
+                const regStatus = data.data.user.registration_status || 'approved';
+                if (regStatus === 'pending') {
+                    console.log('[TENANT DASHBOARD] Registration pending, redirecting...');
+                    window.location.href = '/tenant/pending-approval.html';
+                    return;
+                } else if (regStatus === 'declined') {
+                    console.log('[TENANT DASHBOARD] Registration declined, redirecting...');
+                    window.location.href = '/tenant/registration-declined.html';
+                    return;
+                }
+
+                // Update UI with user info
+                document.getElementById('username').textContent = data.data.user.full_name;
+                document.getElementById('userEmail').textContent = data.data.user.email;
+                document.getElementById('companyName').textContent = data.data.company ? data.data.company.company_name : 'No Company';
+
+                // Load dashboard data
+                loadDashboard();
+            })
+            .catch(error => {
+                console.error('[TENANT DASHBOARD] Session error:', error);
+                window.location.href = '/tenant/login.html';
+            });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            fetch('/php/api/auth/logout.php', { method: 'POST' })
+                .then(() => window.location.href = '/tenant/login.html');
+        });
+
+        // Load dashboard data
+        function loadDashboard() {
+            console.log('[TENANT DASHBOARD] Loading data...');
+
+            Promise.all([
+                fetch('/php/api/dashboard/assets.php').then(r => r.json()),
+                fetch('/php/api/dashboard/liabilities.php').then(r => r.json()),
+                fetch('/php/api/dashboard/equity.php').then(r => r.json()),
+                fetch('/php/api/dashboard/revenue-expenses.php').then(r => r.json()),
+                fetch('/php/api/dashboard/recent-transactions.php?limit=10').then(r => r.json())
+            ])
+            .then(([assets, liabilities, equity, revenueExpenses, transactions]) => {
+                console.log('[TENANT DASHBOARD] Data loaded:', { assets, liabilities, equity, revenueExpenses, transactions });
+
+                // Update amounts
+                if (assets.success && assets.data) {
+                    const total = assets.data.reduce((sum, a) => sum + parseFloat(a.balance), 0);
+                    document.getElementById('totalAssets').textContent = '$' + total.toFixed(2);
+                    renderAssetsChart(assets.data);
+                }
+
+                if (liabilities.success && liabilities.data) {
+                    const total = liabilities.data.reduce((sum, l) => sum + parseFloat(l.balance), 0);
+                    document.getElementById('totalLiabilities').textContent = '$' + total.toFixed(2);
+                    renderLiabilitiesChart(liabilities.data);
+                }
+
+                if (equity.success && equity.data) {
+                    const total = equity.data.reduce((sum, e) => sum + parseFloat(e.balance), 0);
+                    document.getElementById('totalEquity').textContent = '$' + total.toFixed(2);
+                    renderEquityChart(equity.data);
+                }
+
+                if (revenueExpenses.success && revenueExpenses.data) {
+                    renderRevenueExpensesChart(revenueExpenses.data);
+                }
+
+                if (transactions.success && transactions.data) {
+                    renderTransactions(transactions.data);
+                }
+
+                console.log('[TENANT DASHBOARD] ✅ Dashboard rendered successfully');
+            })
+            .catch(error => {
+                console.error('[TENANT DASHBOARD] Error loading data:', error);
+            });
+        }
+
+        // Render Assets Chart
+        function renderAssetsChart(data) {
+            const ctx = document.getElementById('assetsChart');
+            if (charts.assets) charts.assets.destroy();
+
+            charts.assets = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(a => a.account_name),
+                    datasets: [{
+                        data: data.map(a => parseFloat(a.balance)),
+                        backgroundColor: ['#27ae60', '#2ecc71', '#3498db', '#1abc9c', '#16a085']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render Liabilities Chart
+        function renderLiabilitiesChart(data) {
+            const ctx = document.getElementById('liabilitiesChart');
+            if (charts.liabilities) charts.liabilities.destroy();
+
+            charts.liabilities = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(l => l.account_name),
+                    datasets: [{
+                        data: data.map(l => parseFloat(l.balance)),
+                        backgroundColor: ['#e74c3c', '#c0392b', '#e67e22', '#d35400', '#f39c12']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render Equity Chart
+        function renderEquityChart(data) {
+            const ctx = document.getElementById('equityChart');
+            if (charts.equity) charts.equity.destroy();
+
+            charts.equity = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(e => e.account_name),
+                    datasets: [{
+                        data: data.map(e => parseFloat(e.balance)),
+                        backgroundColor: ['#3498db', '#2980b9', '#9b59b6', '#8e44ad', '#34495e']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render Revenue vs Expenses Chart
+        function renderRevenueExpensesChart(data) {
+            const ctx = document.getElementById('revenueExpensesChart');
+            if (charts.revenueExpenses) charts.revenueExpenses.destroy();
+
+            const revenue = data.revenue || [];
+            const expenses = data.expenses || [];
+
+            charts.revenueExpenses = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Revenue', 'Expenses'],
+                    datasets: [{
+                        label: 'Amount',
+                        data: [
+                            revenue.reduce((sum, r) => sum + parseFloat(r.balance), 0),
+                            expenses.reduce((sum, e) => sum + parseFloat(e.balance), 0)
+                        ],
+                        backgroundColor: ['#27ae60', '#e74c3c']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render transactions (modern list - Reference.md: not HTML table)
+        function renderTransactions(transactions) {
+            const container = document.getElementById('transactionsContainer');
+
+            if (transactions.length === 0) {
+                container.innerHTML = '<div style="padding: 40px; text-align: center; color: #7f8c8d;">No transactions yet. <a href="/tenant/transactions.html" style="color: #3498db;">Create your first transaction</a></div>';
+                return;
+            }
+
+            container.innerHTML = transactions.map(t => `
+                <div class="list__item" style="display: flex; padding: 15px 20px; border-bottom: 1px solid #ecf0f1; transition: background 0.2s;"
+                     onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                    <div style="flex: 0 0 140px; font-family: 'Courier New', monospace; font-size: 12px; color: #2c3e50;">
+                        ${t.transaction_number}
+                    </div>
+                    <div style="flex: 0 0 100px; color: #7f8c8d; font-size: 13px;">
+                        ${t.transaction_date}
+                    </div>
+                    <div style="flex: 2; color: #2c3e50; font-size: 14px;">
+                        ${t.description}
+                    </div>
+                    <div style="flex: 0 0 120px; text-align: right; font-weight: 600; color: #27ae60; font-size: 14px;">
+                        $${parseFloat(t.total_amount || 0).toFixed(2)}
+                    </div>
+                    <div style="flex: 0 0 100px; text-align: center;">
+                        <span class="badge" style="background: ${t.status_id == 1 ? '#f39c12' : t.status_id == 2 ? '#27ae60' : '#95a5a6'};
+                                                     color: white; padding: 4px 10px; border-radius: 3px; font-size: 11px; font-weight: 600;">
+                            ${t.status_name}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
+

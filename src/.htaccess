@@ -1,0 +1,100 @@
+# Enable Rewrite Engine
+RewriteEngine On
+
+# Redirect root to index.php
+DirectoryIndex index.php
+
+# Remove .php extension
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.*)$ $1.php [L]
+
+# Prevent directory listing
+Options -Indexes
+
+# Set UTF-8 encoding
+AddDefaultCharset UTF-8
+
+# Enable CORS for API (development only)
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+<?php
+/**
+ * Entry Point - Accounting System
+ * Redirects to appropriate login page
+ */
+
+session_start();
+
+// If user is already logged in, redirect to dashboard
+if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
+    if ($_SESSION['role'] === 'admin') {
+        header('Location: /admin/dashboard.html');
+    } else {
+        header('Location: /tenant/dashboard.html');
+    }
+    exit;
+}
+
+// Not logged in, show landing page with login options
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounting System</title>
+    <link rel="stylesheet" href="/shared/css/reset.css">
+    <link rel="stylesheet" href="/shared/css/variables.css">
+    <link rel="stylesheet" href="/shared/css/components.css">
+    <link rel="stylesheet" href="/shared/css/utilities.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            padding: var(--space-4);
+        }
+        .landing {
+            background: var(--color-white);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-2xl);
+            padding: var(--space-10);
+            max-width: 500px;
+            text-align: center;
+        }
+        .landing__title {
+            font-size: var(--text-4xl);
+            font-weight: var(--font-bold);
+            color: var(--color-gray-900);
+            margin-bottom: var(--space-2);
+        }
+        .landing__subtitle {
+            font-size: var(--text-lg);
+            color: var(--color-gray-600);
+            margin-bottom: var(--space-8);
+        }
+        .landing__buttons {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+        }
+    </style>
+</head>
+<body>
+    <div class="landing">
+        <h1 class="landing__title">Accounting System</h1>
+        <p class="landing__subtitle">Please select your login type</p>
+        <div class="landing__buttons">
+            <a href="/tenant/login.html" class="btn btn--primary btn--lg btn--block">Tenant Login</a>
+            <a href="/admin/login.html" class="btn btn--secondary btn--lg btn--block">Admin Login</a>
+        </div>
+    </div>
+</body>
+</html>
+
