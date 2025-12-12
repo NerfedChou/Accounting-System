@@ -4,11 +4,17 @@
 
 ## What This Is
 
-An **accrual-basis double-entry accounting system** built with:
+An **accrual-basis double-entry accounting system** built with modern software architecture patterns:
 - Domain-Driven Design (DDD)
 - Event-Driven Architecture (EDA)
 - Hexagonal Architecture (Ports & Adapters)
 - Test-Driven Development (TDD)
+
+**Perfect for:**
+- Learning professional software architecture
+- Understanding accounting systems
+- Students studying software engineering
+- Developers learning DDD/EDA patterns
 
 ## Current Status
 
@@ -32,7 +38,7 @@ See `/docs` directory for complete architecture and design documentation.
 | Component | Technology |
 |-----------|------------|
 | Backend | PHP 8.2+ |
-| Database | PostgreSQL 15 |
+| Database | MySQL 8.0 |
 | Frontend | HTML, CSS, JavaScript |
 | Architecture | DDD + EDA + Hexagonal + TDD |
 | Container | Docker |

@@ -13,7 +13,7 @@
 **Tech Stack:**
 - Backend: PHP (modular, no framework initially)
 - Frontend: HTML, CSS, JavaScript (vanilla, pattern-based)
-- Database: My-Sql
+- Database: MySQL 8.0 (student-friendly, widely taught)
 - Container: Docker
 - CI/CD: GitHub Actions
 
