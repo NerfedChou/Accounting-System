@@ -18,11 +18,13 @@ An **accrual-basis double-entry accounting system** built with modern software a
 
 ## Current Status
 
-**Phase:** Foundation & Documentation
+**Phase:** Foundation Complete ✅
 
-- ✅ Legacy codebase deleted
-- ✅ Documentation structure created
-- 🔄 Implementation in progress
+- ✅ Legacy codebase deleted (47,656 lines removed)
+- ✅ Architecture documentation created
+- ✅ GitHub Actions CI/CD configured
+- ✅ Modern PHP project structure
+- 🔄 Ready for domain implementation (TDD)
 
 ## Documentation
 
@@ -30,8 +32,66 @@ See `/docs` directory for complete architecture and design documentation.
 
 **Start here:**
 - `/docs/01-architecture/overview.md` - System architecture
-- `/docs/01-architecture/bounded-contexts.md` - Domain boundaries
-- `/docs/plans/` - Implementation plans
+- `/docs/01-architecture/bounded-contexts.md` - 8 subsystem domains
+- `/docs/01-architecture/hexagonal-architecture.md` - Ports & Adapters
+- `/CHANGELOG.md` - Project history
+
+## Getting Started
+
+### Prerequisites
+- PHP 8.2 or higher
+- Composer
+- MySQL 8.0
+- Docker & Docker Compose (recommended)
+- Git
+
+### Installation
+
+```bash
+# Clone repository
+git clone <repo-url>
+cd Accounting-System
+
+# Install PHP dependencies
+composer install
+
+# Run tests (requires MySQL)
+composer test
+
+# Run static analysis
+composer analyse
+
+# Run linting
+composer lint
+```
+
+### Development Commands
+
+```bash
+# All tests
+composer test
+
+# Unit tests only
+composer test:unit
+
+# Integration tests (requires MySQL)
+composer test:integration
+
+# Coverage report
+composer test:coverage
+
+# PHPStan (level 8)
+composer analyse
+
+# Code style check
+composer lint
+
+# Auto-fix code style
+composer lint:fix
+
+# Security analysis
+composer psalm
+```
 
 ## Tech Stack
 
