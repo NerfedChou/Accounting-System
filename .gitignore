@@ -1,28 +1,47 @@
-# Environment files
-.env
+# Dependencies
+/vendor/
+composer.phar
+composer.lock
+/node_modules/
+package-lock.json
 
-# Docker volumes
-/docker/mysql/data/
+# Testing
+.phpunit.cache/
+coverage/
+.phpunit.result.cache
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
+# Environment
+.env
+.env.local
+.env.*.local
+
 # Logs
 *.log
-/logs/
+logs/
 
-# Composer
-/vendor/
-composer.lock
+# Build artifacts
+build/
+dist/
 
-# Node modules (if using any frontend tools later)
-/node_modules/
-package-lock.json
+# Docker volumes
+mysql_data/
+postgres_data/
+/docker/mysql/data/
 
+# Temporary files
+tmp/
+temp/
+
+# Claude
+/.claude/
