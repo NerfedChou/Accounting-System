@@ -6,7 +6,7 @@ namespace Tests\Unit\Domain\ChartOfAccounts\ValueObject;
 
 use Domain\ChartOfAccounts\ValueObject\AccountCode;
 use Domain\ChartOfAccounts\ValueObject\AccountType;
-use InvalidArgumentException;
+use Domain\Shared\Exception\InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class AccountCodeTest extends TestCase

@@ -97,7 +97,7 @@ final class AccountTypeTest extends TestCase
 
     public function test_throws_for_invalid_code_range(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(\Domain\Shared\Exception\InvalidArgumentException::class);
         AccountType::fromCodeRange(9000);
     }
 }

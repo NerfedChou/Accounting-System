@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Domain\ChartOfAccounts\ValueObject;
 
-use InvalidArgumentException;
+use Domain\Shared\Exception\InvalidArgumentException;
 
 enum AccountType: string
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Domain\ChartOfAccounts\ValueObject;
 
-use InvalidArgumentException;
+use Domain\Shared\Exception\InvalidArgumentException;
 
 final readonly class AccountCode
 {
@@ -53,6 +53,24 @@ final readonly class AccountCode
     public function accountType(): AccountType
     {
         return AccountType::fromCodeRange($this->code);
+    }
+
+    /**
+     * Get the first digit (type prefix) of the code.
+     */
+    public function getTypePrefix(): int
+    {
+        return (int) substr((string) $this->code, 0, 1);
+    }
+
+    /**
+     * Check if this code represents a sub-account of the given parent code.
+     * Sub-accounts share the same type prefix (first digit).
+     */
+    public function isSubAccountOf(self $parent): bool
+    {
+        return $this->getTypePrefix() === $parent->getTypePrefix()
+            && $this->code !== $parent->code;
     }
 
     public function equals(self $other): bool
