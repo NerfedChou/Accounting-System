@@ -54,6 +54,26 @@ final class AccountBalance
         );
     }
 
+    public static function reconstruct(
+        AccountBalanceId $id,
+        AccountId $accountId,
+        CompanyId $companyId,
+        AccountType $accountType,
+        NormalBalance $normalBalance,
+        Currency $currency,
+        BalanceMetrics $metrics
+    ): self {
+        return new self(
+            id: $id,
+            accountId: $accountId,
+            companyId: $companyId,
+            accountType: $accountType,
+            normalBalance: $normalBalance,
+            currency: $currency,
+            metrics: $metrics
+        );
+    }
+
     /**
      * Apply a balance change from a transaction line.
      * BR-LP-001: Balance change calculation based on normal balance.

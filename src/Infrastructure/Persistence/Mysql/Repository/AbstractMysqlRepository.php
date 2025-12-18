@@ -1,0 +1,117 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Infrastructure\Persistence\Mysql\Repository;
+
+use Infrastructure\Persistence\Mysql\Connection\PdoConnectionFactory;
+use PDO;
+
+/**
+ * Base repository with common database operations.
+ */
+abstract class AbstractMysqlRepository
+{
+    protected PDO $connection;
+
+    public function __construct(?PDO $connection = null)
+    {
+        $this->connection = $connection ?? PdoConnectionFactory::getConnection();
+    }
+
+    /**
+     * Begin a database transaction.
+     */
+    protected function beginTransaction(): void
+    {
+        if (!$this->connection->inTransaction()) {
+            $this->connection->beginTransaction();
+        }
+    }
+
+    /**
+     * Commit the current transaction.
+     */
+    protected function commit(): void
+    {
+        if ($this->connection->inTransaction()) {
+            $this->connection->commit();
+        }
+    }
+
+    /**
+     * Rollback the current transaction.
+     */
+    protected function rollback(): void
+    {
+        if ($this->connection->inTransaction()) {
+            $this->connection->rollBack();
+        }
+    }
+
+    /**
+     * Execute a query and return all results.
+     *
+     * @param string $sql
+     * @param array<string, mixed> $params
+     * @return array<int, array<string, mixed>>
+     */
+    protected function fetchAll(string $sql, array $params = []): array
+    {
+        $stmt = $this->connection->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Execute a query and return a single row.
+     *
+     * @param string $sql
+     * @param array<string, mixed> $params
+     * @return array<string, mixed>|null
+     */
+    protected function fetchOne(string $sql, array $params = []): ?array
+    {
+        $stmt = $this->connection->prepare($sql);
+        $stmt->execute($params);
+        $result = $stmt->fetch();
+        return $result !== false ? $result : null;
+    }
+
+    /**
+     * Execute a query (INSERT, UPDATE, DELETE).
+     *
+     * @param string $sql
+     * @param array<string, mixed> $params
+     * @return int Affected rows
+     */
+    protected function execute(string $sql, array $params = []): int
+    {
+        $stmt = $this->connection->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Check if a record exists.
+     *
+     * @param string $sql
+     * @param array<string, mixed> $params
+     */
+    protected function exists(string $sql, array $params = []): bool
+    {
+        return $this->fetchOne($sql, $params) !== null;
+    }
+
+    /**
+     * Get count from a query.
+     *
+     * @param string $sql
+     * @param array<string, mixed> $params
+     */
+    protected function count(string $sql, array $params = []): int
+    {
+        $result = $this->fetchOne($sql, $params);
+        return $result !== null ? (int) ($result['count'] ?? 0) : 0;
+    }
+}

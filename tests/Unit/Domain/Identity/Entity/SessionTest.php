@@ -19,7 +19,7 @@ final class SessionTest extends TestCase
         $ipAddress = '192.168.1.1';
         $userAgent = 'Mozilla/5.0';
 
-        $session = Session::create($userId, $ipAddress, $userAgent);
+        $session = Session::create($userId, $ipAddress, $userAgent, 'test-token');
 
         $this->assertInstanceOf(SessionId::class, $session->id());
         $this->assertTrue($userId->equals($session->userId()));
@@ -30,7 +30,7 @@ final class SessionTest extends TestCase
 
     public function test_session_has_expiration(): void
     {
-        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent');
+        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent', 'test-token');
 
         $this->assertInstanceOf(DateTimeImmutable::class, $session->expiresAt());
         $this->assertGreaterThan(new DateTimeImmutable(), $session->expiresAt());
@@ -38,7 +38,7 @@ final class SessionTest extends TestCase
 
     public function test_session_can_be_refreshed(): void
     {
-        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent');
+        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent', 'test-token');
         $originalExpiry = $session->expiresAt();
 
         // Wait a tiny bit to ensure time difference
@@ -50,7 +50,7 @@ final class SessionTest extends TestCase
 
     public function test_session_can_be_terminated(): void
     {
-        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent');
+        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent', 'test-token');
 
         $session->terminate();
 
@@ -59,7 +59,7 @@ final class SessionTest extends TestCase
 
     public function test_terminated_session_cannot_be_refreshed(): void
     {
-        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent');
+        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent', 'test-token');
         $session->terminate();
 
         $this->expectException(BusinessRuleException::class);
@@ -70,14 +70,14 @@ final class SessionTest extends TestCase
 
     public function test_checks_if_session_is_expired(): void
     {
-        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent');
+        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent', 'test-token');
 
         $this->assertFalse($session->isExpired());
     }
 
     public function test_session_records_last_activity(): void
     {
-        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent');
+        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent', 'test-token');
         $before = new DateTimeImmutable();
 
         $session->recordActivity();
@@ -89,7 +89,7 @@ final class SessionTest extends TestCase
     public function test_session_has_created_at_timestamp(): void
     {
         $before = new DateTimeImmutable();
-        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent');
+        $session = Session::create(UserId::generate(), '192.168.1.1', 'Agent', 'test-token');
         $after = new DateTimeImmutable();
 
         $this->assertGreaterThanOrEqual($before, $session->createdAt());

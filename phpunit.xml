@@ -33,10 +33,10 @@
 
     <php>
         <env name="APP_ENV" value="testing"/>
-        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_HOST" value="mysql"/>
         <env name="DB_PORT" value="3306"/>
-        <env name="DB_NAME" value="accounting_test"/>
-        <env name="DB_USER" value="test_user"/>
-        <env name="DB_PASSWORD" value="test_password"/>
+        <env name="DB_DATABASE" value="accounting_test"/>
+        <env name="DB_USERNAME" value="accounting_user"/>
+        <env name="DB_PASSWORD" value="accounting_pass"/>
     </php>
 </phpunit>

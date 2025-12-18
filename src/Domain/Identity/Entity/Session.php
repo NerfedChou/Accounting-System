@@ -13,7 +13,7 @@ final class Session
 {
     private const SESSION_DURATION_HOURS = 24;
 
-    private function __construct(
+    public function __construct(
         private readonly SessionId $sessionId,
         private readonly UserId $userId,
         private readonly string $ipAddress,
@@ -21,14 +21,16 @@ final class Session
         private bool $isActive,
         private DateTimeImmutable $expiresAt,
         private ?DateTimeImmutable $lastActivityAt,
-        private readonly DateTimeImmutable $createdAt
+        private readonly DateTimeImmutable $createdAt,
+        private readonly ?string $token = null
     ) {
     }
 
     public static function create(
         UserId $userId,
         string $ipAddress,
-        string $userAgent
+        string $userAgent,
+        string $token
     ): self {
         $now = new DateTimeImmutable();
 
@@ -40,7 +42,8 @@ final class Session
             isActive: true,
             expiresAt: $now->modify('+' . self::SESSION_DURATION_HOURS . ' hours'),
             lastActivityAt: $now,
-            createdAt: $now
+            createdAt: $now,
+            token: $token
         );
     }
 
@@ -78,6 +81,11 @@ final class Session
     public function userId(): UserId
     {
         return $this->userId;
+    }
+
+    public function token(): ?string
+    {
+        return $this->token;
     }
 
     public function ipAddress(): string

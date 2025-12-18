@@ -60,6 +60,32 @@ final readonly class BalanceChange
         );
     }
 
+    public static function reconstruct(
+        BalanceChangeId $id,
+        AccountId $accountId,
+        TransactionId $transactionId,
+        LineType $lineType,
+        int $amountCents,
+        int $previousBalanceCents,
+        int $newBalanceCents,
+        int $changeCents,
+        bool $isReversal,
+        DateTimeImmutable $occurredAt
+    ): self {
+        return new self(
+            id: $id,
+            accountId: $accountId,
+            transactionId: $transactionId,
+            lineType: $lineType,
+            amountCents: $amountCents,
+            previousBalanceCents: $previousBalanceCents,
+            newBalanceCents: $newBalanceCents,
+            changeCents: $changeCents,
+            isReversal: $isReversal,
+            occurredAt: $occurredAt
+        );
+    }
+
     /**
      * Create a reversal change (opposite of original).
      */

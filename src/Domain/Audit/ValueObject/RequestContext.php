@@ -16,6 +16,7 @@ final readonly class RequestContext
         private ?string $userAgent,
         private ?string $sessionId,
         private ?string $requestId,
+        private ?string $correlationId,
         private ?string $endpoint,
         private ?string $httpMethod,
         private DateTimeImmutable $timestamp
@@ -24,7 +25,7 @@ final readonly class RequestContext
 
     public static function empty(): self
     {
-        return new self(null, null, null, null, null, null, new DateTimeImmutable());
+        return new self(null, null, null, null, null, null, null, new DateTimeImmutable());
     }
 
     public static function fromRequest(
@@ -32,6 +33,7 @@ final readonly class RequestContext
         string $userAgent,
         ?string $sessionId = null,
         ?string $requestId = null,
+        ?string $correlationId = null,
         ?string $endpoint = null,
         ?string $httpMethod = null
     ): self {
@@ -40,6 +42,7 @@ final readonly class RequestContext
             $userAgent,
             $sessionId,
             $requestId,
+            $correlationId,
             $endpoint,
             $httpMethod,
             new DateTimeImmutable()
@@ -64,6 +67,11 @@ final readonly class RequestContext
     public function requestId(): ?string
     {
         return $this->requestId;
+    }
+
+    public function correlationId(): ?string
+    {
+        return $this->correlationId;
     }
 
     public function endpoint(): ?string
@@ -91,6 +99,7 @@ final readonly class RequestContext
             'user_agent' => $this->userAgent,
             'session_id' => $this->sessionId,
             'request_id' => $this->requestId,
+            'correlation_id' => $this->correlationId,
             'endpoint' => $this->endpoint,
             'http_method' => $this->httpMethod,
             'timestamp' => $this->timestamp->format('Y-m-d H:i:s'),

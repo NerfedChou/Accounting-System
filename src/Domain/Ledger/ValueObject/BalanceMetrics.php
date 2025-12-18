@@ -32,6 +32,26 @@ final class BalanceMetrics
         );
     }
 
+    public static function reconstruct(
+        int $currentBalanceCents,
+        int $openingBalanceCents,
+        int $totalDebitsCents,
+        int $totalCreditsCents,
+        int $transactionCount,
+        ?DateTimeImmutable $lastTransactionAt,
+        int $version
+    ): self {
+        return new self(
+            currentBalanceCents: $currentBalanceCents,
+            openingBalanceCents: $openingBalanceCents,
+            totalDebitsCents: $totalDebitsCents,
+            totalCreditsCents: $totalCreditsCents,
+            transactionCount: $transactionCount,
+            lastTransactionAt: $lastTransactionAt,
+            version: $version
+        );
+    }
+
     public function withUpdate(int $changeCents, int $debitAmount, int $creditAmount, DateTimeImmutable $occurredAt): self
     {
         return new self(
