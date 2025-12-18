@@ -80,19 +80,56 @@ final class AuthController
 
     /**
      * POST /api/v1/auth/login
+     * 
+     * Accepts username or email for identification.
+     * Requires password + OTP for users with 2FA enabled.
      */
     public function login(ServerRequestInterface $request): ResponseInterface
     {
         $body = $request->getParsedBody();
 
-        if (empty($body['email']) || empty($body['password'])) {
-            return JsonResponse::error('Email and password are required', 422);
+        // Accept either username or email
+        $identifier = $body['username'] ?? $body['email'] ?? null;
+        $password = $body['password'] ?? null;
+        
+        if (empty($identifier) || empty($password)) {
+            return JsonResponse::error('Username/email and password are required', 422);
         }
 
+        // Find user by email or username
+        $user = null;
+        if (str_contains($identifier, '@')) {
+            $user = $this->userRepository->findByEmail(Email::fromString($identifier));
+        } else {
+            $user = $this->userRepository->findByUsername($identifier);
+        }
+        
+        if ($user === null) {
+            return JsonResponse::error('User not found', 401);
+        }
+        
+        if (!$user->verifyPassword($password)) {
+            return JsonResponse::error('Invalid password', 401);
+        }
+
+        // Check if user has OTP enabled (2FA required)
+        if ($user->isOtpEnabled()) {
+            if (empty($body['otp_code'])) {
+                return JsonResponse::error('OTP code is required', 422);
+            }
+
+            // Verify OTP code
+            $totpService = new \Infrastructure\Service\TotpService();
+            if (!$totpService->verify($user->otpSecret(), $body['otp_code'])) {
+                return JsonResponse::error('Invalid OTP code - check your authenticator app', 401);
+            }
+        }
+
+        // Generate session/JWT
         try {
             $session = $this->authService->authenticate(
-                $body['email'],
-                $body['password'],
+                $user->username(),
+                $password,
                 $request->getServerParams()['REMOTE_ADDR'] ?? 'unknown',
                 $request->getHeaderLine('User-Agent') ?: 'unknown'
             );
@@ -103,7 +140,7 @@ final class AuthController
                 'user_id' => $session->userId()->toString(),
             ]);
         } catch (\Throwable $e) {
-            return JsonResponse::error('Invalid credentials', 401);
+            return JsonResponse::error('Authentication failed', 401);
         }
     }
 

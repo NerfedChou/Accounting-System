@@ -32,6 +32,7 @@ final class User
         private bool $isActive,
         private ?DateTimeImmutable $lastLoginAt,
         private ?string $lastLoginIp,
+        private ?string $otpSecret,
         private DateTimeImmutable $createdAt,
         private DateTimeImmutable $updatedAt
     ) {
@@ -70,6 +71,7 @@ final class User
             isActive: true,
             lastLoginAt: null,
             lastLoginIp: null,
+            otpSecret: null,
             createdAt: $now,
             updatedAt: $now
         );
@@ -105,6 +107,15 @@ final class User
         return $valid;
     }
 
+    /**
+     * Simple password verification without status checks.
+     * Used for login flow where status is checked separately.
+     */
+    public function verifyPassword(string $password): bool
+    {
+        return password_verify($password, $this->passwordHash);
+    }
+
     public function approve(UserId $approverId): void
     {
         // BR-IAM-010: Cannot self-approve
@@ -116,6 +127,15 @@ final class User
             throw new BusinessRuleException('Only pending registrations can be approved');
         }
 
+        $this->registrationStatus = RegistrationStatus::APPROVED;
+        $this->updatedAt = new DateTimeImmutable();
+    }
+
+    public function approveGenesis(): void
+    {
+        if ($this->role !== Role::ADMIN) {
+            throw new BusinessRuleException('Only admins can be genesis approved');
+        }
         $this->registrationStatus = RegistrationStatus::APPROVED;
         $this->updatedAt = new DateTimeImmutable();
     }
@@ -240,5 +260,30 @@ final class User
     public function updatedAt(): DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function otpSecret(): ?string
+    {
+        return $this->otpSecret;
+    }
+
+    public function isOtpEnabled(): bool
+    {
+        return $this->otpSecret !== null;
+    }
+
+    public function enableOtp(string $secret): void
+    {
+        if (strlen($secret) < 16) {
+             throw new InvalidArgumentException('OTP secret must be at least 16 characters');
+        }
+        $this->otpSecret = $secret;
+        $this->updatedAt = new DateTimeImmutable();
+    }
+
+    public function disableOtp(): void
+    {
+        $this->otpSecret = null;
+        $this->updatedAt = new DateTimeImmutable();
     }
 }

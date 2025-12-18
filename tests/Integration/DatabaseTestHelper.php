@@ -8,6 +8,26 @@ use PDO;
 
 trait DatabaseTestHelper
 {
+    public static function resetDatabase(): void
+    {
+        $host = $_ENV['DB_HOST'] ?? 'mysql';
+        $port = $_ENV['DB_PORT'] ?? '3306';
+        $database = $_ENV['DB_DATABASE'] ?? 'accounting';
+        $username = $_ENV['DB_USERNAME'] ?? 'accounting_user';
+        $password = $_ENV['DB_PASSWORD'] ?? 'accounting_pass';
+
+        $dsn = "mysql:host=$host;port=$port;dbname=$database;charset=utf8mb4";
+        $pdo = new PDO($dsn, $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
+        $tables = ['users', 'companies', 'accounts', 'transactions', 'transaction_lines', 'approvals', 'activity_logs', 'sessions', 'reports'];
+        foreach ($tables as $table) {
+            $pdo->exec("TRUNCATE TABLE $table");
+        }
+        $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
+    }
+
     protected function createCompany(PDO $pdo, string $id, string $name = 'Test Company'): void
     {
         $stmt = $pdo->prepare("INSERT INTO companies (

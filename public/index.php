@@ -9,6 +9,7 @@ use Api\Controller\ApprovalController;
 use Api\Controller\AuthController;
 use Api\Controller\CompanyController;
 use Api\Controller\ReportController;
+use Api\Controller\SetupController;
 use Api\Controller\TransactionController;
 use Api\Middleware\AuthenticationMiddleware;
 use Api\Middleware\CorsMiddleware;
@@ -72,6 +73,12 @@ $reportController = new ReportController(
     $container->get(ReportRepositoryInterface::class)
 );
 
+$setupController = new SetupController(
+    $container->get(UserRepositoryInterface::class),
+    $container->get(\Application\Handler\Admin\SetupAdminHandler::class),
+    $container->get(\Infrastructure\Service\TotpService::class)
+);
+
 // Create router
 $router = new Router();
 
@@ -83,12 +90,18 @@ $router->addMiddleware(new \Api\Middleware\InputSanitizationMiddleware());
 $router->addMiddleware(new AuthenticationMiddleware(
     $container->get(AuthenticationServiceInterface::class),
     $container->get(\Infrastructure\Service\JwtService::class),
-    ['/api/v1/auth/register', '/api/v1/auth/login', '/api/v1/', '/']
+    [
+        '/',                        // Root info
+        '/api/v1/auth/register',    // Registration
+        '/api/v1/auth/login',       // Login
+        '/api/v1/setup/',           // Setup routes (handled by SetupMiddleware)
+    ]
 ));
 $router->addMiddleware(new \Api\Middleware\RoleEnforcementMiddleware());
 $router->addMiddleware(new \Api\Middleware\CompanyScopingMiddleware(
     $container->get(UserRepositoryInterface::class)
 ));
+$router->addMiddleware($container->get(\Api\Middleware\SetupMiddleware::class));
 
 // API Info route
 $router->get('/', fn() => \Api\Response\JsonResponse::success([
@@ -115,6 +128,11 @@ $router->post('/api/v1/auth/register', [$authController, 'register']);
 $router->post('/api/v1/auth/login', [$authController, 'login']);
 $router->post('/api/v1/auth/logout', [$authController, 'logout']);
 $router->get('/api/v1/auth/me', [$authController, 'me']);
+
+// Setup routes
+$router->get('/api/v1/setup/status', [$setupController, 'status']);
+$router->post('/api/v1/setup/init', [$setupController, 'init']);
+$router->post('/api/v1/setup/complete', [$setupController, 'complete']);
 
 // Company routes
 $router->post('/api/v1/companies', [$companyController, 'create']);

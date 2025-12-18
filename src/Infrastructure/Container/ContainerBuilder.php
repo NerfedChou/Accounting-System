@@ -190,6 +190,16 @@ final class ContainerBuilder
                 $c->get('password_service')
             )
         );
+
+        $container->singleton(\Infrastructure\Service\TotpService::class, fn() =>
+            new \Infrastructure\Service\TotpService()
+        );
+
+        $container->singleton(\Api\Middleware\SetupMiddleware::class, fn(ContainerInterface $c) =>
+            new \Api\Middleware\SetupMiddleware(
+                $c->get(UserRepositoryInterface::class)
+            )
+        );
     }
 
     private static function registerHandlers(Container $container): void
@@ -216,6 +226,13 @@ final class ContainerBuilder
                 $c->get(TransactionRepositoryInterface::class),
                 $c->get(\Domain\Ledger\Repository\JournalEntryRepositoryInterface::class),
                 $c->get(EventDispatcherInterface::class)
+            )
+        );
+
+        $container->singleton(\Application\Handler\Admin\SetupAdminHandler::class, fn(ContainerInterface $c) =>
+            new \Application\Handler\Admin\SetupAdminHandler(
+                $c->get(UserRepositoryInterface::class),
+                $c->get(\Infrastructure\Service\TotpService::class)
             )
         );
     }

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Accounting System - Authorized Personnel Only">
+    <title>RESTRICTED ACCESS | Accounting System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+
+<body>
+    <main class="min-h-screen flex flex-col items-center justify-center">
+        <div class="container">
+
+            <!-- Security Classification Header -->
+            <div class="text-center mb-6">
+                <span class="badge badge-danger">Authorized Personnel Only</span>
+            </div>
+
+            <!-- Step Indicator -->
+            <div class="steps" id="stepIndicator">
+                <span class="step-dot active" data-step="1"></span>
+                <span class="step-dot" data-step="2"></span>
+            </div>
+
+            <!-- View 1: Identity Verification -->
+            <section id="view-username" class="view active">
+                <div class="card">
+                    <form id="usernameForm" class="flex flex-col gap-6">
+                        <div class="text-center">
+                            <div class="lock-icon"></div>
+                            <h1>Access Terminal</h1>
+                            <p class="text-muted">Identify yourself to proceed</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="username" class="form-label">Operator ID</label>
+                            <input type="text" id="username" name="username" class="form-input"
+                                placeholder="Enter your username" required autocomplete="username">
+                        </div>
+
+                        <div id="usernameError" class="form-error" style="display: none;"></div>
+
+                        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btnUsername">
+                            Verify Identity
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- View 2: Authentication Challenge -->
+            <section id="view-auth" class="view">
+                <div class="card">
+                    <form id="authForm" class="flex flex-col gap-6">
+                        <div class="text-center">
+                            <h2>Authentication Required</h2>
+                            <p class="text-muted" id="authSubtitle">Complete security verification</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password" class="form-label">Security Passphrase</label>
+                            <input type="password" id="password" name="password" class="form-input"
+                                placeholder="••••••••••••••••" required autocomplete="current-password">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="otpCode" class="form-label">Time-Based Security Code</label>
+                            <input type="text" id="otpCode" name="otpCode" class="form-input" placeholder="000000"
+                                required pattern="[0-9]{6}" maxlength="6" inputmode="numeric"
+                                autocomplete="one-time-code">
+                            <span class="form-helper">Enter 6-digit code from authenticator device</span>
+                        </div>
+
+                        <div id="authError" class="form-error" style="display: none;"></div>
+
+                        <div class="flex gap-4">
+                            <button type="button" class="btn btn-secondary" id="btnBack">Abort</button>
+                            <button type="submit" class="btn btn-primary btn-block" id="btnLogin">
+                                Authenticate
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Security Notice -->
+            <div class="text-center mt-6">
+                <p class="text-muted" style="font-size: 11px; letter-spacing: 0.1em;">
+                    ALL ACCESS ATTEMPTS ARE MONITORED AND LOGGED
+                </p>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="/assets/js/login.js"></script>
+</body>
+
+</html>

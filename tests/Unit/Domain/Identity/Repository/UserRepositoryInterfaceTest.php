@@ -70,6 +70,16 @@ final class UserRepositoryInterfaceTest extends TestCase
                     fn(User $user) => $user->registrationStatus()->isPending()
                 );
             }
+
+            public function hasAnyAdmin(): bool
+            {
+                foreach ($this->users as $user) {
+                    if ($user->role()->isAdmin()) {
+                        return true;
+                    }
+                }
+                return false;
+            }
         };
 
         $user = User::register(
@@ -229,6 +239,16 @@ final class UserRepositoryInterfaceTest extends TestCase
                     $this->users,
                     fn(User $user) => $user->registrationStatus()->isPending()
                 );
+            }
+
+            public function hasAnyAdmin(): bool
+            {
+                foreach ($this->users as $user) {
+                    if ($user->role()->isAdmin()) {
+                        return true;
+                    }
+                }
+                return false;
             }
         };
     }

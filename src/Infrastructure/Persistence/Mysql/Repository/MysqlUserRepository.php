@@ -99,6 +99,13 @@ final class MysqlUserRepository extends AbstractMysqlRepository implements UserR
         return array_map(fn(array $row) => $this->hydrator->hydrate($row), $rows);
     }
 
+    public function hasAnyAdmin(): bool
+    {
+        return $this->exists(
+            "SELECT 1 FROM users WHERE role = 'admin'"
+        );
+    }
+
     /**
      * Insert a new user.
      *
@@ -110,10 +117,12 @@ final class MysqlUserRepository extends AbstractMysqlRepository implements UserR
             INSERT INTO users (
                 id, company_id, username, email, password_hash, role, 
                 registration_status, is_active, last_login_at, last_login_ip, 
+                otp_secret,
                 created_at, updated_at
             ) VALUES (
                 :id, :company_id, :username, :email, :password_hash, :role,
                 :registration_status, :is_active, :last_login_at, :last_login_ip,
+                :otp_secret,
                 :created_at, :updated_at
             )
         SQL;
@@ -139,6 +148,7 @@ final class MysqlUserRepository extends AbstractMysqlRepository implements UserR
                 is_active = :is_active,
                 last_login_at = :last_login_at,
                 last_login_ip = :last_login_ip,
+                otp_secret = :otp_secret,
                 updated_at = :updated_at
             WHERE id = :id
         SQL;

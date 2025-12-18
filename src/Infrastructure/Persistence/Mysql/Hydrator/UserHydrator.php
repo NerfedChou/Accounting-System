@@ -54,6 +54,7 @@ final class UserHydrator
             $row['last_login_at'] !== null ? new DateTimeImmutable($row['last_login_at']) : null
         );
         $this->setProperty($reflection, $user, 'lastLoginIp', $row['last_login_ip'] ?? null);
+        $this->setProperty($reflection, $user, 'otpSecret', $row['otp_secret'] ?? null);
         $this->setProperty($reflection, $user, 'createdAt', new DateTimeImmutable($row['created_at']));
         $this->setProperty($reflection, $user, 'updatedAt', new DateTimeImmutable($row['updated_at']));
         $this->setProperty($reflection, $user, 'domainEvents', []);
@@ -79,6 +80,7 @@ final class UserHydrator
             'is_active' => $user->isActive() ? 1 : 0,
             'last_login_at' => $user->lastLoginAt()?->format('Y-m-d H:i:s'),
             'last_login_ip' => $user->lastLoginIp(),
+            'otp_secret' => $user->otpSecret(),
             'created_at' => $user->createdAt()->format('Y-m-d H:i:s'),
             'updated_at' => $user->updatedAt()->format('Y-m-d H:i:s'),
         ];

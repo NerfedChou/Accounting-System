@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Accounting System - Initial System Configuration">
+  <title>SYSTEM INITIALIZATION | Accounting System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+
+<body>
+  <main class="min-h-screen flex flex-col items-center justify-center">
+    <div class="container">
+
+      <!-- Security Classification Header -->
+      <div class="text-center mb-6">
+        <span class="badge badge-info" id="headerBadge">Checking System Status...</span>
+      </div>
+
+      <!-- Step Indicator -->
+      <div class="steps" id="stepIndicator">
+        <span class="step-dot active" data-step="1"></span>
+        <span class="step-dot" data-step="2"></span>
+        <span class="step-dot" data-step="3"></span>
+      </div>
+
+      <!-- View 1: Welcome / Status Check -->
+      <section id="view-welcome" class="view active">
+        <div class="card flex flex-col items-center gap-6 text-center">
+          <div class="lock-icon"></div>
+          <div>
+            <h1>System Initialization</h1>
+            <p class="text-muted">Configure primary administrator access</p>
+          </div>
+          <span class="badge badge-success" id="statusBadge">
+            <span class="spinner" id="statusSpinner"></span>
+            <span id="statusText">Verifying system state...</span>
+          </span>
+          <button type="button" class="btn btn-primary btn-lg btn-block" id="btnStart" disabled>
+            Initialize System
+          </button>
+        </div>
+      </section>
+
+      <!-- View 2: TOTP Configuration -->
+      <section id="view-totp" class="view">
+        <div class="card flex flex-col gap-6">
+          <div class="text-center">
+            <h2>Security Protocol Setup</h2>
+            <p class="text-muted">Scan this QR code with your authenticator device</p>
+          </div>
+
+          <div class="text-center">
+            <div class="qr-container" id="qrContainer">
+              <canvas id="qrCanvas"></canvas>
+            </div>
+          </div>
+
+          <div class="secret-display">
+            <code id="secretCode" class="secret-code">Loading...</code>
+            <button type="button" id="btnCopySecret" class="btn-icon" title="Copy to clipboard">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+
+          <p class="form-helper text-center">
+            Compatible with Google Authenticator, Authy, 1Password, etc.
+          </p>
+
+          <div class="flex gap-4">
+            <button type="button" class="btn btn-secondary" id="btnBackToWelcome">Abort</button>
+            <button type="button" class="btn btn-primary btn-block" id="btnToForm">Proceed</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- View 3: Admin Account Form -->
+      <section id="view-form" class="view">
+        <div class="card">
+          <form id="setupForm" class="flex flex-col gap-6">
+            <div class="text-center">
+              <h2>Administrator Credentials</h2>
+              <p class="text-muted">Define primary system operator access</p>
+            </div>
+
+            <div class="form-group">
+              <label for="username" class="form-label">Operator ID</label>
+              <input type="text" id="username" name="username" class="form-input" placeholder="admin" required
+                autocomplete="username">
+            </div>
+
+            <div class="form-group">
+              <label for="email" class="form-label">Contact Address</label>
+              <input type="email" id="email" name="email" class="form-input" placeholder="admin@company.com" required
+                autocomplete="email">
+            </div>
+
+            <div class="form-group">
+              <label for="password" class="form-label">Security Passphrase</label>
+              <input type="password" id="password" name="password" class="form-input" placeholder="••••••••••••"
+                required minlength="8" autocomplete="new-password">
+              <span class="form-helper">Minimum 8 characters required</span>
+            </div>
+
+            <div class="form-group">
+              <label for="confirmPassword" class="form-label">Confirm Passphrase</label>
+              <input type="password" id="confirmPassword" name="confirmPassword" class="form-input"
+                placeholder="••••••••••••" required autocomplete="new-password">
+            </div>
+
+            <div class="form-group">
+              <label for="otpCode" class="form-label">Verification Code</label>
+              <input type="text" id="otpCode" name="otpCode" class="form-input" placeholder="000000" required
+                pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+              <span class="form-helper">Enter 6-digit code from authenticator device</span>
+            </div>
+
+            <div id="formError" class="form-error" style="display: none;"></div>
+
+            <div class="flex gap-4">
+              <button type="button" class="btn btn-secondary" id="btnBackToTotp">Cancel</button>
+              <button type="submit" class="btn btn-primary btn-block" id="btnSubmit">
+                Finalize Configuration
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- View 4: Success -->
+      <section id="view-success" class="view">
+        <div class="card flex flex-col items-center gap-6 text-center">
+          <div class="success-icon">✓</div>
+          <div>
+            <h2>System Secured</h2>
+            <p class="text-muted">Administrator credentials have been registered and verified.</p>
+          </div>
+          <a href="/login.html" class="btn btn-primary btn-lg">Access Control Terminal</a>
+        </div>
+      </section>
+
+      <!-- Security Notice -->
+      <div class="text-center mt-6">
+        <p class="text-muted" style="font-size: 11px; letter-spacing: 0.1em;">
+          THIS CONFIGURATION SESSION IS ENCRYPTED AND LOGGED
+        </p>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- QR Code Library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <script src="/assets/js/setup.js"></script>
+</body>
+
+</html>

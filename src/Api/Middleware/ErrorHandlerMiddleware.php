@@ -91,11 +91,20 @@ final class ErrorHandlerMiddleware
      */
     private function getErrorMessage(Throwable $e): string
     {
-        // In production, hide internal error details
-        if (!$this->debug && $this->mapExceptionToStatusCode($e) >= 500) {
+        // Debug mode: Always show full message
+        if ($this->debug) {
+            return $e->getMessage();
+        }
+
+        $statusCode = $this->mapExceptionToStatusCode($e);
+
+        // Production: Mask execution/internal errors (5xx)
+        if ($statusCode >= 500) {
             return 'An internal error occurred. Please try again later.';
         }
 
-        return $e->getMessage();
+        // Production: Allow client errors (4xx) but sanitize to prevent injection/leakage of weird characters
+        // Although JSON encoding handles most, this explicit step helps static analysis
+        return strip_tags($e->getMessage());
     }
 }

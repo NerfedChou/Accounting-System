@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Accounting System - Control Center">
+    <title>CONTROL CENTER | Accounting System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/dashboard.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">🔐</span>
+                    <span class="logo-text">ACCT<span class="logo-accent">SYS</span></span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <span class="nav-section-title">Main</span>
+                    <a href="/dashboard.html" class="nav-item active">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-label">Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">📒</span>
+                        <span class="nav-label">Journal</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">📑</span>
+                        <span class="nav-label">Ledger</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <span class="nav-section-title">Reports</span>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">💰</span>
+                        <span class="nav-label">Trial Balance</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-label">Income Statement</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-label">Balance Sheet</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <span class="nav-section-title">Administration</span>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-label">Users</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">🏢</span>
+                        <span class="nav-label">Companies</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">📜</span>
+                        <span class="nav-label">Audit Log</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">A</div>
+                    <div class="user-details">
+                        <span class="user-name" id="userName">Admin</span>
+                        <span class="user-role">Administrator</span>
+                    </div>
+                </div>
+                <button class="btn-logout" id="btnLogout" title="Logout">
+                    <span>⏻</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="page-title">
+                    <h1>Control Center</h1>
+                    <span class="badge badge-info">System Active</span>
+                </div>
+                <div class="top-bar-actions">
+                    <span class="system-time" id="systemTime">--:--:--</span>
+                </div>
+            </header>
+
+            <!-- Dashboard Content -->
+            <div class="content-area">
+                <!-- Stats Row -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">📊</span>
+                            <span class="stat-title">Active Sessions</span>
+                        </div>
+                        <div class="stat-value">1</div>
+                        <div class="stat-change positive">Current</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">📝</span>
+                            <span class="stat-title">Today's Transactions</span>
+                        </div>
+                        <div class="stat-value">0</div>
+                        <div class="stat-change neutral">No activity</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">🏢</span>
+                            <span class="stat-title">Companies</span>
+                        </div>
+                        <div class="stat-value">0</div>
+                        <div class="stat-change neutral">Setup required</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">👥</span>
+                            <span class="stat-title">Operators</span>
+                        </div>
+                        <div class="stat-value">1</div>
+                        <div class="stat-change positive">Online</div>
+                    </div>
+                </div>
+
+                <!-- Main Panels -->
+                <div class="panels-grid">
+                    <!-- Recent Activity -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>Recent Activity</h2>
+                            <span class="badge badge-info">Live</span>
+                        </div>
+                        <div class="panel-content">
+                            <div class="activity-list" id="activityList">
+                                <div class="activity-item">
+                                    <span class="activity-icon">🔑</span>
+                                    <div class="activity-details">
+                                        <span class="activity-text">System initialization completed</span>
+                                        <span class="activity-time">Just now</span>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <span class="activity-icon">👤</span>
+                                    <div class="activity-details">
+                                        <span class="activity-text">Administrator account created</span>
+                                        <span class="activity-time">Just now</span>
+                                    </div>
+                                </div>
+                                <div class="empty-state" style="display: none;">
+                                    <span class="empty-icon">📭</span>
+                                    <p>No recent activity</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>Quick Actions</h2>
+                        </div>
+                        <div class="panel-content">
+                            <div class="quick-actions">
+                                <button class="quick-action-btn">
+                                    <span class="action-icon">➕</span>
+                                    <span class="action-label">New Transaction</span>
+                                </button>
+                                <button class="quick-action-btn">
+                                    <span class="action-icon">🏢</span>
+                                    <span class="action-label">Add Company</span>
+                                </button>
+                                <button class="quick-action-btn">
+                                    <span class="action-icon">👤</span>
+                                    <span class="action-label">Add User</span>
+                                </button>
+                                <button class="quick-action-btn">
+                                    <span class="action-icon">📊</span>
+                                    <span class="action-label">Generate Report</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Status -->
+                <div class="panel system-status">
+                    <div class="panel-header">
+                        <h2>System Status</h2>
+                        <span class="badge badge-success">All Systems Operational</span>
+                    </div>
+                    <div class="panel-content">
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <span class="status-indicator online"></span>
+                                <span class="status-label">Database</span>
+                                <span class="status-value">Connected</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-indicator online"></span>
+                                <span class="status-label">Authentication</span>
+                                <span class="status-value">Active</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-indicator online"></span>
+                                <span class="status-label">Session</span>
+                                <span class="status-value">Valid</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-indicator online"></span>
+                                <span class="status-label">2FA</span>
+                                <span class="status-value">Enabled</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="main-footer">
+                <span class="footer-text">ALL ACTIVITIES ARE MONITORED AND LOGGED</span>
+            </footer>
+        </main>
+    </div>
+
+    <script src="/assets/js/dashboard.js"></script>
+</body>
+
+</html>

@@ -26,4 +26,6 @@ interface UserRepositoryInterface
      * @return array<User>
      */
     public function findPendingUsers(): array;
+
+    public function hasAnyAdmin(): bool;
 }
