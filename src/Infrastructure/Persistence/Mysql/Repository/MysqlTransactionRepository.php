@@ -241,6 +241,16 @@ final class MysqlTransactionRepository extends AbstractMysqlRepository implement
         return $result !== null ? (int) $result['count'] : 0;
     }
 
+    public function countToday(): int
+    {
+        $result = $this->fetchOne(
+            "SELECT COUNT(*) as count FROM transactions 
+             WHERE DATE(transaction_date) = CURDATE()"
+        );
+
+        return $result !== null ? (int) $result['count'] : 0;
+    }
+
     /**
      * Hydrate multiple transactions with their lines.
      *

@@ -60,7 +60,8 @@ $companyController = new CompanyController(
 );
 
 $accountController = new AccountController(
-    $container->get(AccountRepositoryInterface::class)
+    $container->get(AccountRepositoryInterface::class),
+    $container->get(TransactionRepositoryInterface::class)
 );
 
 $transactionController = new TransactionController(
@@ -85,6 +86,12 @@ $setupController = new SetupController(
     $container->get(\Infrastructure\Service\TotpService::class)
 );
 
+$dashboardController = new \Api\Controller\DashboardController(
+    $container->get(TransactionRepositoryInterface::class),
+    $container->get(ApprovalRepositoryInterface::class),
+    $container->get(AccountRepositoryInterface::class)
+);
+
 // Create router
 $router = new Router();
 
@@ -105,9 +112,7 @@ $router->addMiddleware(new AuthenticationMiddleware(
 ));
 $router->addMiddleware(new \Api\Middleware\RateLimitMiddleware($redis));
 $router->addMiddleware(new \Api\Middleware\RoleEnforcementMiddleware());
-$router->addMiddleware(new \Api\Middleware\CompanyScopingMiddleware(
-    $container->get(UserRepositoryInterface::class)
-));
+$router->addMiddleware(new \Api\Middleware\CompanyScopingMiddleware());
 $router->addMiddleware($container->get(\Api\Middleware\SetupMiddleware::class));
 
 // API Info route
@@ -141,6 +146,9 @@ $router->get('/api/v1/setup/status', [$setupController, 'status']);
 $router->post('/api/v1/setup/init', [$setupController, 'init']);
 $router->post('/api/v1/setup/complete', [$setupController, 'complete']);
 
+// Dashboard routes (system-wide, no company scoping)
+$router->get('/api/v1/dashboard/stats', [$dashboardController, 'stats']);
+
 // Company routes
 $router->get('/api/v1/companies', [$companyController, 'list']);
 $router->post('/api/v1/companies', [$companyController, 'create']);
@@ -149,7 +157,10 @@ $router->get('/api/v1/companies/{id}', [$companyController, 'get']);
 // Account routes
 $router->get('/api/v1/companies/{companyId}/accounts', [$accountController, 'list']);
 $router->get('/api/v1/companies/{companyId}/accounts/{id}', [$accountController, 'get']);
+$router->get('/api/v1/companies/{companyId}/accounts/{id}/transactions', [$accountController, 'transactions']);
 $router->post('/api/v1/companies/{companyId}/accounts', [$accountController, 'create']);
+$router->put('/api/v1/companies/{companyId}/accounts/{id}', [$accountController, 'update']);
+$router->post('/api/v1/companies/{companyId}/accounts/{id}/toggle', [$accountController, 'toggle']);
 
 // Transaction routes
 $router->get('/api/v1/companies/{companyId}/transactions', [$transactionController, 'list']);

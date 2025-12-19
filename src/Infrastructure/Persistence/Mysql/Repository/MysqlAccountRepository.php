@@ -134,6 +134,15 @@ final class MysqlAccountRepository extends AbstractMysqlRepository implements Ac
         return array_map(fn(array $row) => $this->hydrator->hydrate($row), $rows);
     }
 
+    public function countActive(): int
+    {
+        $result = $this->fetchOne(
+            "SELECT COUNT(*) as count FROM accounts WHERE is_active = 1"
+        );
+
+        return $result !== null ? (int) $result['count'] : 0;
+    }
+
     /**
      * @param array<string, mixed> $data
      */

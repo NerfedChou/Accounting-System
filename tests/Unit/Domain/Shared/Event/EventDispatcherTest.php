@@ -6,14 +6,14 @@ namespace Tests\Unit\Domain\Shared\Event;
 
 use DateTimeImmutable;
 use Domain\Shared\Event\DomainEvent;
-use Domain\Shared\Event\EventDispatcher;
+use Domain\Shared\Event\EventDispatcherInterface;
 use PHPUnit\Framework\TestCase;
 
 final class EventDispatcherTest extends TestCase
 {
     public function test_event_dispatcher_interface_has_dispatch_method(): void
     {
-        $dispatcher = new class implements EventDispatcher {
+        $dispatcher = new class implements EventDispatcherInterface {
             public array $dispatchedEvents = [];
 
             public function dispatch(DomainEvent $event): void

@@ -50,10 +50,10 @@ final class ActivityLogListener
         if ($event instanceof TransactionCreated) {
             $eventData = $event->toArray();
             $this->activityLogService->logActivity(
-                new \Domain\Audit\ValueObject\LogActivityRequest(
+                new \Domain\Audit\Service\LogActivityRequest(
                     companyId: $eventData['company_id'],
                     actor: Actor::user(UserId::fromString($eventData['created_by']), 'Unknown'),
-                    activityType: ActivityType::CREATE,
+                    activityType: ActivityType::TRANSACTION_CREATED,
                     entityInfo: [
                         'type' => 'transaction',
                         'id' => $eventData['transaction_id'],

@@ -94,19 +94,24 @@ class ApiClient {
     }
 
     async getDashboardStats() {
-        // Aggregate multiple calls for dashboard
-        const companyId = this.getCompanyId();
-        const [transactions, approvals, accounts] = await Promise.allSettled([
-            this.get(`/companies/${companyId}/transactions?limit=1`),
-            this.get(`/companies/${companyId}/approvals/pending?limit=1`),
-            this.get(`/companies/${companyId}/accounts`)
-        ]);
-
-        return {
-            transactionCount: transactions.status === 'fulfilled' ? (transactions.value?.meta?.total || 0) : 0,
-            pendingApprovals: approvals.status === 'fulfilled' ? (approvals.value?.meta?.total || approvals.value?.data?.length || 0) : 0,
-            accountCount: accounts.status === 'fulfilled' ? (accounts.value?.data?.length || 0) : 0
-        };
+        // Use dedicated backend endpoint for system-wide stats
+        try {
+            const result = await this.get('/dashboard/stats');
+            return {
+                transactionCount: result?.data?.todays_transactions || 0,
+                pendingApprovals: result?.data?.pending_approvals || 0,
+                accountCount: result?.data?.gl_accounts || 0,
+                activeSessions: result?.data?.active_sessions || 1
+            };
+        } catch (error) {
+            console.error('Failed to fetch dashboard stats:', error);
+            return {
+                transactionCount: 0,
+                pendingApprovals: 0,
+                accountCount: 0,
+                activeSessions: 1
+            };
+        }
     }
 
     // ========== Company APIs ==========
@@ -121,9 +126,13 @@ class ApiClient {
 
     // ========== Transaction APIs ==========
 
-    async getTransactions(page = 1, limit = 20, companyId = null) {
+    async getTransactions(page = 1, limit = 20, companyId = null, status = 'all') {
         const cid = companyId || this.getCompanyId();
-        return this.get(`/companies/${cid}/transactions?page=${page}&limit=${limit}`);
+        let url = `/companies/${cid}/transactions?page=${page}&limit=${limit}`;
+        if (status && status !== 'all') {
+            url += `&status=${encodeURIComponent(status)}`;
+        }
+        return this.get(url);
     }
 
     async getTransaction(id, companyId = null) {
@@ -170,9 +179,30 @@ class ApiClient {
         return this.get(`/companies/${cid}/accounts`);
     }
 
+    async getAccount(id, companyId = null) {
+        const cid = companyId || this.getCompanyId();
+        return this.get(`/companies/${cid}/accounts/${id}`);
+    }
+
     async createAccount(data, companyId = null) {
         const cid = companyId || this.getCompanyId();
         return this.post(`/companies/${cid}/accounts`, data);
+    }
+
+    async updateAccount(id, data, companyId = null) {
+        const cid = companyId || this.getCompanyId();
+        return this.put(`/companies/${cid}/accounts/${id}`, data);
+    }
+
+    async toggleAccount(id, companyId = null) {
+        const cid = companyId || this.getCompanyId();
+        return this.post(`/companies/${cid}/accounts/${id}/toggle`);
+    }
+
+    async getAccountTransactions(companyId, accountId) {
+        const cid = companyId || this.getCompanyId();
+        const result = await this.get(`/companies/${cid}/accounts/${accountId}/transactions`);
+        return result?.data || [];
     }
 
     // ========== Report APIs ==========

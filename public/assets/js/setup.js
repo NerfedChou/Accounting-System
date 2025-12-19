@@ -154,6 +154,13 @@ class SetupManager {
     }
 
     async copySecret() {
+        // SECURITY: Validate secret contains only safe Base32 characters before any DOM operation
+        // This prevents XSS even if sanitizeSecret was somehow bypassed
+        if (!this.otpSecret || !/^[A-Z2-7]+$/i.test(this.otpSecret)) {
+            console.error('Invalid OTP secret format');
+            return;
+        }
+
         try {
             await navigator.clipboard.writeText(this.otpSecret);
             const originalTitle = this.elements.btnCopySecret.title;
@@ -162,13 +169,19 @@ class SetupManager {
                 this.elements.btnCopySecret.title = originalTitle;
             }, 2000);
         } catch (error) {
-            // Fallback for older browsers
+            // Fallback for older browsers - using safe validated value
             const textArea = document.createElement('textarea');
+            // otpSecret is guaranteed to be Base32-only at this point (validated above)
             textArea.value = this.otpSecret;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
             document.body.appendChild(textArea);
             textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
+            try {
+                document.execCommand('copy');
+            } finally {
+                document.body.removeChild(textArea);
+            }
         }
     }
 

@@ -48,6 +48,7 @@ final class TransactionController
             $page = max(1, (int) ($queryParams['page'] ?? 1));
             $limit = max(1, min(100, (int) ($queryParams['limit'] ?? 20)));
             $offset = ($page - 1) * $limit;
+            $statusFilter = $queryParams['status'] ?? null;
 
             $transactions = $this->transactionRepository->findByCompany(
                 CompanyId::fromString($companyId),
@@ -56,10 +57,18 @@ final class TransactionController
                 $offset
             );
 
+            // Apply status filter if provided
+            if ($statusFilter !== null && $statusFilter !== 'all') {
+                $transactions = array_filter(
+                    $transactions,
+                    fn($t) => $t->status()->value === $statusFilter
+                );
+            }
+
             // Return flat array - frontend expects data directly
             $data = array_map(fn($t) => $this->formatTransactionSummary($t), $transactions);
 
-            return JsonResponse::success($data);
+            return JsonResponse::success(array_values($data));
         } catch (\Throwable $e) {
             return JsonResponse::error($e->getMessage(), 500);
         }

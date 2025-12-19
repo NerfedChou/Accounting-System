@@ -11,6 +11,7 @@ use Domain\ChartOfAccounts\ValueObject\AccountCode;
 use Domain\ChartOfAccounts\ValueObject\AccountId;
 use Domain\ChartOfAccounts\ValueObject\AccountType;
 use Domain\Company\ValueObject\CompanyId;
+use Domain\Transaction\Repository\TransactionRepositoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -20,7 +21,8 @@ use Psr\Http\Message\ServerRequestInterface;
 final class AccountController
 {
     public function __construct(
-        private readonly AccountRepositoryInterface $accountRepository
+        private readonly AccountRepositoryInterface $accountRepository,
+        private readonly TransactionRepositoryInterface $transactionRepository
     ) {
     }
 
@@ -110,7 +112,118 @@ final class AccountController
     }
 
     /**
+     * PUT /api/v1/companies/{companyId}/accounts/{id}
+     */
+    public function update(ServerRequestInterface $request): ResponseInterface
+    {
+        $id = $request->getAttribute('id');
+        if ($id === null) {
+            return JsonResponse::error('Account ID required', 400);
+        }
+
+        $body = $request->getParsedBody();
+
+        try {
+            $account = $this->accountRepository->findById(
+                AccountId::fromString($id)
+            );
+
+            if ($account === null) {
+                return JsonResponse::error('Account not found', 404);
+            }
+
+            // Update name if provided
+            if (isset($body['name']) && !empty($body['name'])) {
+                $account->rename($body['name']);
+            }
+
+            // Update description if provided
+            if (array_key_exists('description', $body)) {
+                $account->updateDescription($body['description'] ?? '');
+            }
+
+            $this->accountRepository->save($account);
+
+            return JsonResponse::success($this->formatAccount($account));
+        } catch (\Throwable $e) {
+            return JsonResponse::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * POST /api/v1/companies/{companyId}/accounts/{id}/toggle
+     */
+    public function toggle(ServerRequestInterface $request): ResponseInterface
+    {
+        $id = $request->getAttribute('id');
+        if ($id === null) {
+            return JsonResponse::error('Account ID required', 400);
+        }
+
+        try {
+            $account = $this->accountRepository->findById(
+                AccountId::fromString($id)
+            );
+
+            if ($account === null) {
+                return JsonResponse::error('Account not found', 404);
+            }
+
+            // Toggle active status
+            if ($account->isActive()) {
+                $account->deactivate();
+            } else {
+                $account->activate();
+            }
+
+            $this->accountRepository->save($account);
+
+            return JsonResponse::success($this->formatAccount($account));
+        } catch (\Throwable $e) {
+            return JsonResponse::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * GET /api/v1/companies/{companyId}/accounts/{id}/transactions
+     * Fetch transactions where this account was used.
+     */
+    public function transactions(ServerRequestInterface $request): ResponseInterface
+    {
+        $id = $request->getAttribute('id');
+        if ($id === null) {
+            return JsonResponse::error('Account ID required', 400);
+        }
+
+        try {
+            // Verify account exists
+            $account = $this->accountRepository->findById(
+                AccountId::fromString($id)
+            );
+
+            if ($account === null) {
+                return JsonResponse::error('Account not found', 404);
+            }
+
+            // Fetch transactions involving this account (limit to recent 20)
+            $transactions = $this->transactionRepository->findByAccount(
+                AccountId::fromString($id)
+            );
+
+            // Limit to 20 most recent
+            $transactions = array_slice($transactions, 0, 20);
+
+            $data = array_map(fn($t) => $this->formatTransactionSummary($t), $transactions);
+
+            return JsonResponse::success(array_values($data));
+        } catch (\Throwable $e) {
+            return JsonResponse::error($e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Format account for API response.
+     * Backend handles all formatting - frontend just displays.
      */
     private function formatAccount(Account $account): array
     {
@@ -119,9 +232,29 @@ final class AccountController
             'code' => $account->code()->toInt(),
             'name' => $account->name(),
             'type' => $account->accountType()->value,
+            'type_label' => ucfirst($account->accountType()->value),
+            'normal_balance' => $account->normalBalance()->value,
             'company_id' => $account->companyId()->toString(),
             'parent_id' => $account->parentAccountId()?->toString(),
+            'description' => $account->description(),
             'is_active' => $account->isActive(),
+            'balance' => $account->balance()->cents() / 100,
+            'balance_cents' => $account->balance()->cents(),
+            'currency' => $account->balance()->currency()->value,
+        ];
+    }
+
+    /**
+     * Format transaction for list display.
+     */
+    private function formatTransactionSummary(\Domain\Transaction\Entity\Transaction $transaction): array
+    {
+        return [
+            'id' => $transaction->id()->toString(),
+            'transaction_date' => $transaction->transactionDate()->format('Y-m-d'),
+            'description' => $transaction->description(),
+            'status' => $transaction->status()->value,
+            'amount' => $transaction->totalAmount()->cents() / 100,
         ];
     }
 }

@@ -39,4 +39,9 @@ interface ApprovalRepositoryInterface
     public function findExpired(): array;
 
     public function countPendingByCompany(CompanyId $companyId): int;
+
+    /**
+     * Count all pending approvals system-wide.
+     */
+    public function countPending(): int;
 }

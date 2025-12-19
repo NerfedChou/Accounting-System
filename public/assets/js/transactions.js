@@ -251,10 +251,15 @@ class TransactionsManager {
     async loadTransactions() {
         if (!this.selectedCompanyId) return;
 
-        this.showLoading();
+        // Get status filter
+        const statusFilter = this.elements.filterStatus?.value || 'all';
+
+        // Fade out current content instead of clearing (reduces flicker)
+        this.elements.transactionsBody.style.opacity = '0.5';
+        this.elements.transactionsBody.style.pointerEvents = 'none';
 
         try {
-            const result = await api.getTransactions(this.currentPage, this.pageSize, this.selectedCompanyId);
+            const result = await api.getTransactions(this.currentPage, this.pageSize, this.selectedCompanyId, statusFilter);
             // Backend returns flat array directly: {success: true, data: [...]}
             const transactions = result?.data || [];
 
@@ -267,17 +272,25 @@ class TransactionsManager {
             console.error('Failed to load transactions:', error);
             this.renderTransactions([]);
             this.updateTransactionCount(0);
+        } finally {
+            // Fade back in
+            this.elements.transactionsBody.style.opacity = '1';
+            this.elements.transactionsBody.style.pointerEvents = 'auto';
         }
     }
 
     showLoading() {
-        this.elements.transactionsBody.innerHTML = `
-            <tr class="loading-row">
-                <td colspan="6">
-                    <div class="loading-spinner">Loading transactions...</div>
-                </td>
-            </tr>
-        `;
+        // Only show loading spinner if the table is empty (first load)
+        if (!this.elements.transactionsBody.innerHTML.trim() ||
+            this.elements.transactionsBody.querySelector('.loading-row')) {
+            this.elements.transactionsBody.innerHTML = `
+                <tr class="loading-row">
+                    <td colspan="6">
+                        <div class="loading-spinner">Loading transactions...</div>
+                    </td>
+                </tr>
+            `;
+        }
         this.elements.emptyState.style.display = 'none';
     }
 
@@ -327,7 +340,7 @@ class TransactionsManager {
                 <td><code>${this.escapeHtml(txn.id?.substring(0, 8) || 'N/A')}...</code></td>
                 <td>${this.escapeHtml(date)}</td>
                 <td>${this.escapeHtml(txn.description || 'No description')}</td>
-                <td style="font-family: var(--font-mono); text-align: right;">${this.escapeHtml(amount)}</td>
+                <td style="font-family: var(--font-mono);">${this.escapeHtml(amount)}</td>
                 <td><span class="status-badge ${safeStatus}">${safeStatus}</span></td>
                 <td>
                     <!-- Actions performed will appear here -->

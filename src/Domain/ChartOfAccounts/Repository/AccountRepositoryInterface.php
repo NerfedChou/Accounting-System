@@ -35,4 +35,9 @@ interface AccountRepositoryInterface
     public function findByParent(AccountId $parentAccountId): array;
 
     public function delete(AccountId $accountId): void;
+
+    /**
+     * Count all active accounts system-wide.
+     */
+    public function countActive(): int;
 }

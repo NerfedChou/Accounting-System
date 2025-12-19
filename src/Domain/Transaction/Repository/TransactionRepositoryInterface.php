@@ -50,4 +50,9 @@ interface TransactionRepositoryInterface
     public function getNextTransactionNumber(CompanyId $companyId): string;
 
     public function countByStatus(CompanyId $companyId, TransactionStatus $status): int;
+
+    /**
+     * Count all transactions created today system-wide.
+     */
+    public function countToday(): int;
 }

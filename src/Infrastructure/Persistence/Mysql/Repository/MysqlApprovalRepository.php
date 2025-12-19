@@ -136,6 +136,15 @@ final class MysqlApprovalRepository extends AbstractMysqlRepository implements A
         return $result !== null ? (int) $result['count'] : 0;
     }
 
+    public function countPending(): int
+    {
+        $result = $this->fetchOne(
+            "SELECT COUNT(*) as count FROM approvals WHERE status = 'pending'"
+        );
+
+        return $result !== null ? (int) $result['count'] : 0;
+    }
+
     /**
      * Insert or update an approval.
      *

@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Api\Middleware;
 
 use Api\Response\JsonResponse;
-use Domain\Identity\Repository\UserRepositoryInterface;
-use Domain\Identity\ValueObject\UserId;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -16,10 +14,6 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class CompanyScopingMiddleware
 {
-    public function __construct(
-        private readonly UserRepositoryInterface $userRepository
-    ) {
-    }
 
     /**
      * Process the request and enforce company scoping for tenants.

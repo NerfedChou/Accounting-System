@@ -142,7 +142,7 @@ final class ApprovalController
             'status' => $approval->status()->value,
             'priority' => $approval->priority(),
             'requested_at' => $approval->requestedAt()->format('Y-m-d\TH:i:s\Z'),
-            'expires_at' => $approval->expiresAt()->format('Y-m-d\TH:i:s\Z'),
+            'expires_at' => $approval->expiresAt()?->format('Y-m-d\TH:i:s\Z'),
             'reviewed_at' => $approval->reviewedAt()?->format('Y-m-d\TH:i:s\Z'),
             'review_notes' => $approval->reviewNotes(),
         ];
