@@ -60,11 +60,91 @@ class DashboardManager {
 
     async loadDashboardData() {
         try {
+            // Load company ID first
+            const companies = await api.getCompanies();
+            if (companies?.data?.length > 0) {
+                this.companyId = companies.data[0].id;
+                localStorage.setItem('company_id', this.companyId);
+            }
+
             const stats = await api.getDashboardStats();
             this.updateStats(stats);
+
+            // Load pending approvals for dropdown
+            await this.loadPendingApprovalsDropdown();
         } catch (error) {
             console.error('Failed to load dashboard data:', error);
         }
+    }
+
+    async loadPendingApprovalsDropdown() {
+        const dropdownMenu = document.getElementById('approvalDropdownMenu');
+        if (!dropdownMenu || !this.companyId) return;
+
+        try {
+            const result = await api.getPendingApprovals(1, 5, this.companyId);
+            // Backend returns flat array directly: {success: true, data: [...]}
+            const approvals = result?.data || [];
+
+            if (approvals.length === 0) {
+                dropdownMenu.innerHTML = `
+                    <div class="dropdown-header">No Pending Approvals</div>
+                    <div class="dropdown-footer">
+                        <a href="/transactions.html">View All Transactions →</a>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="dropdown-header">Recent Pending Approvals</div>';
+
+            for (const approval of approvals) {
+                const amount = this.formatCurrency(approval.amount_cents / 100);
+                const entityId = approval.entity_id || '';
+                const reason = approval.reason || 'Pending approval';
+
+                html += `
+                    <a href="/transactions.html?status=pending&company=${this.companyId}&txn=${entityId}" class="dropdown-item">
+                        <div class="dropdown-item-icon warning">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                                <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm1 6a1 1 0 1 0-2 0 1 1 0 0 0 2 0Z"></path>
+                            </svg>
+                        </div>
+                        <div class="dropdown-item-content">
+                            <span class="dropdown-item-title">${this.escapeHtml(reason)}</span>
+                            <span class="dropdown-item-meta">Metro Dumaguete College • ${this.escapeHtml(amount)}</span>
+                        </div>
+                    </a>
+                `;
+            }
+
+            html += `
+                <div class="dropdown-footer">
+                    <a href="/transactions.html?status=pending&company=${this.companyId}">View All Pending →</a>
+                </div>
+            `;
+
+            dropdownMenu.innerHTML = html;
+        } catch (error) {
+            console.error('Failed to load pending approvals:', error);
+        }
+    }
+
+    formatCurrency(amount) {
+        return new Intl.NumberFormat('en-PH', {
+            style: 'currency',
+            currency: 'PHP'
+        }).format(amount);
+    }
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     updateStats(stats) {
@@ -86,10 +166,6 @@ class DashboardManager {
     updateApprovalStat(count) {
         if (!this.elements.statCompanies) return;
 
-        // MOCK: Use mock count for layout testing until real approvals exist
-        const mockCount = count > 0 ? count : 3;
-        const hasRealApprovals = count > 0;
-
         this.elements.statCompanies.textContent = count;
         const label = document.querySelector('.stat-card:nth-child(3) .stat-title');
         if (label) label.textContent = 'Pending Approvals';
@@ -99,15 +175,19 @@ class DashboardManager {
             this.elements.statCompaniesChange.className = `stat-change ${count > 0 ? 'warning' : 'positive'}`;
         }
 
-        // Update approval badge (using mock for demo)
+        // Update approval badge with real count
         if (this.elements.approvalBadge) {
-            this.elements.approvalBadge.textContent = mockCount;
-            this.elements.approvalBadge.style.display = 'flex';
+            this.elements.approvalBadge.textContent = count;
+            this.elements.approvalBadge.style.display = count > 0 ? 'flex' : 'none';
         }
 
-        // Keep sheen animation on for demo (remove this condition when going live)
+        // Show sheen animation only if there are pending approvals
         if (this.elements.btnPendingApprovals) {
-            this.elements.btnPendingApprovals.classList.add('has-alert');
+            if (count > 0) {
+                this.elements.btnPendingApprovals.classList.add('has-alert');
+            } else {
+                this.elements.btnPendingApprovals.classList.remove('has-alert');
+            }
         }
     }
 

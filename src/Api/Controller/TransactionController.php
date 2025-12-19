@@ -56,16 +56,10 @@ final class TransactionController
                 $offset
             );
 
-            // TODO: Return metadata (total, pages) in future
+            // Return flat array - frontend expects data directly
             $data = array_map(fn($t) => $this->formatTransactionSummary($t), $transactions);
 
-            return JsonResponse::success([
-                'data' => $data,
-                'meta' => [
-                    'page' => $page,
-                    'limit' => $limit,
-                ]
-            ]);
+            return JsonResponse::success($data);
         } catch (\Throwable $e) {
             return JsonResponse::error($e->getMessage(), 500);
         }
@@ -240,17 +234,24 @@ final class TransactionController
     /**
      * Format transaction entity for list/get responses.
      * Uses domain entity accessors directly for read operations.
+     * Backend handles all conversions - frontend just displays.
      */
     private function formatTransactionSummary(mixed $transaction): array
     {
+        $totalDebitsCents = $transaction->totalDebits()->cents();
+        $totalCreditsCents = $transaction->totalCredits()->cents();
+        
         return [
             'id' => $transaction->id()->toString(),
             'company_id' => $transaction->companyId()->toString(),
             'description' => $transaction->description(),
             'status' => $transaction->status()->value,
             'date' => $transaction->transactionDate()->format('Y-m-d'),
-            'total_debits_cents' => $transaction->totalDebits()->cents(),
-            'total_credits_cents' => $transaction->totalCredits()->cents(),
+            // Primary field for display - backend converts cents to dollars
+            'total_amount' => $totalDebitsCents / 100,
+            // Raw cents values for precision if needed
+            'total_debits_cents' => $totalDebitsCents,
+            'total_credits_cents' => $totalCreditsCents,
             'reference_number' => $transaction->referenceNumber(),
             'created_at' => $transaction->createdAt()->format('Y-m-d\TH:i:s\Z'),
             'posted_at' => $transaction->postedAt()?->format('Y-m-d\TH:i:s\Z'),

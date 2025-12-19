@@ -45,15 +45,10 @@ final class ApprovalController
                 $offset
             );
 
+            // Return flat array - frontend expects data directly
             $data = array_map(fn(Approval $a) => $this->formatApproval($a), $approvals);
 
-            return JsonResponse::success([
-                'data' => $data,
-                'meta' => [
-                    'page' => $page,
-                    'limit' => $limit,
-                ]
-            ]);
+            return JsonResponse::success($data);
         } catch (\Throwable $e) {
             return JsonResponse::error($e->getMessage(), 500);
         }

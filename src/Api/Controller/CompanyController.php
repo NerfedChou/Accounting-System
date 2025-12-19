@@ -25,6 +25,23 @@ final class CompanyController
     }
 
     /**
+     * GET /api/v1/companies
+     * List all companies (for now, returns all active companies).
+     */
+    public function list(ServerRequestInterface $request): ResponseInterface
+    {
+        try {
+            $companies = $this->companyRepository->findAll();
+            
+            return JsonResponse::success(
+                array_map(fn($c) => $this->formatCompany($c), $companies)
+            );
+        } catch (\Throwable $e) {
+            return JsonResponse::error($e->getMessage(), 500);
+        }
+    }
+
+    /**
      * GET /api/v1/companies/{id}
      */
     public function get(ServerRequestInterface $request): ResponseInterface

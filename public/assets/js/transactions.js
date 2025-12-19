@@ -84,14 +84,7 @@ class TransactionsManager {
     async loadCompanies() {
         try {
             const result = await api.getCompanies();
-            let companies = result?.data || [];
-
-            // MOCK: Use mock company if API returns empty (for layout testing)
-            if (companies.length === 0) {
-                companies = [
-                    { id: '1', name: 'Metro Dumaguete College', code: 'MDC' }
-                ];
-            }
+            const companies = result?.data || [];
 
             this.companies = companies;
             this.renderCompanySelector();
@@ -100,6 +93,8 @@ class TransactionsManager {
             if (this.companies.length > 0) {
                 this.selectedCompanyId = this.companies[0].id;
                 this.elements.filterCompany.value = this.selectedCompanyId;
+                // Store company ID for other pages
+                localStorage.setItem('company_id', this.selectedCompanyId);
                 await this.loadAccounts();
                 // Check URL params BEFORE loading transactions (sets filter)
                 this.checkUrlAction();
@@ -109,14 +104,7 @@ class TransactionsManager {
             }
         } catch (error) {
             console.error('Failed to load companies:', error);
-
-            // MOCK: Fallback to mock on error
-            this.companies = [{ id: '1', name: 'Metro Dumaguete College', code: 'MDC' }];
-            this.renderCompanySelector();
-            this.selectedCompanyId = '1';
-            this.elements.filterCompany.value = '1';
-            this.checkUrlAction();
-            this.loadMockTransactions();
+            this.showNoCompanyState();
         }
     }
 
@@ -210,23 +198,30 @@ class TransactionsManager {
         const company = urlParams.get('company');
         const txnId = urlParams.get('txn');
 
-        // Set company filter from URL
-        if (company && this.elements.filterCompany) {
+        // Validate and sanitize URL parameters to prevent XSS
+        const validStatuses = ['all', 'draft', 'pending', 'approved', 'posted', 'rejected', 'voided'];
+        const isValidCompany = company && /^\d+$/.test(company); // Only numeric IDs
+        const isValidStatus = status && validStatuses.includes(status);
+        const isValidTxnId = txnId && /^[A-Za-z0-9\-]+$/.test(txnId); // Alphanumeric + hyphens only
+        const isValidAction = action && /^[a-z]+$/.test(action); // Lowercase letters only
+
+        // Set company filter from URL (only if valid)
+        if (isValidCompany && this.elements.filterCompany) {
             this.elements.filterCompany.value = company;
             this.selectedCompanyId = company;
         }
 
-        // Set status filter from URL
-        if (status && this.elements.filterStatus) {
+        // Set status filter from URL (only if valid)
+        if (isValidStatus && this.elements.filterStatus) {
             this.elements.filterStatus.value = status;
         }
 
-        // Store txnId to open modal after transactions load
-        if (txnId) {
+        // Store txnId to open modal after transactions load (only if valid)
+        if (isValidTxnId) {
             this.pendingTxnToOpen = txnId;
         }
 
-        if (action === 'new' && this.selectedCompanyId) {
+        if (isValidAction && action === 'new' && this.selectedCompanyId) {
             // Small delay to let accounts load
             setTimeout(() => this.openNewTransactionModal(), 300);
             // Clean up URL
@@ -260,88 +255,19 @@ class TransactionsManager {
 
         try {
             const result = await api.getTransactions(this.currentPage, this.pageSize, this.selectedCompanyId);
-            let transactions = result?.data || [];
-            const meta = result?.meta || {};
+            // Backend returns flat array directly: {success: true, data: [...]}
+            const transactions = result?.data || [];
 
-            // MOCK: Use mock data if API returns empty
-            if (transactions.length === 0) {
-                this.loadMockTransactions();
-                return;
-            }
-
-            this.totalPages = Math.ceil((meta.total || transactions.length) / this.pageSize);
-            this.updateTransactionCount(meta.total || transactions.length);
+            this.totalPages = Math.ceil(transactions.length / this.pageSize) || 1;
+            this.updateTransactionCount(transactions.length);
             this.renderTransactions(transactions);
             this.updatePagination();
             this.checkPendingTxnOpen();
         } catch (error) {
             console.error('Failed to load transactions:', error);
-            this.loadMockTransactions();
+            this.renderTransactions([]);
+            this.updateTransactionCount(0);
         }
-    }
-
-    loadMockTransactions() {
-        // MOCK: Sample transactions for Metro Dumaguete College
-        const mockTransactions = [
-            {
-                id: 'TXN-2024-001',
-                reference_number: 'JE-2024-001',
-                description: 'Tuition Fee Collection - 1st Semester',
-                date: '2024-12-18',
-                status: 'pending',
-                total_amount: 45000.00,
-                created_at: '2024-12-18T08:30:00Z'
-            },
-            {
-                id: 'TXN-2024-002',
-                reference_number: 'PD-2024-001',
-                description: 'Faculty Payroll Disbursement - December',
-                date: '2024-12-15',
-                status: 'pending',
-                total_amount: 128500.00,
-                created_at: '2024-12-15T14:00:00Z'
-            },
-            {
-                id: 'TXN-2024-003',
-                reference_number: 'UP-2024-001',
-                description: 'Utility Payment - DECECO Electric',
-                date: '2024-12-10',
-                status: 'pending',
-                total_amount: 8750.00,
-                created_at: '2024-12-10T09:15:00Z'
-            },
-            {
-                id: 'TXN-2024-004',
-                reference_number: 'JE-2024-002',
-                description: 'Laboratory Equipment Purchase',
-                date: '2024-12-08',
-                status: 'posted',
-                total_amount: 75000.00,
-                created_at: '2024-12-08T11:20:00Z'
-            },
-            {
-                id: 'TXN-2024-005',
-                reference_number: 'JE-2024-003',
-                description: 'Student Activity Fund Allocation',
-                date: '2024-12-05',
-                status: 'posted',
-                total_amount: 25000.00,
-                created_at: '2024-12-05T16:45:00Z'
-            }
-        ];
-
-        // Apply status filter
-        const selectedStatus = this.elements.filterStatus?.value;
-        let filtered = mockTransactions;
-        if (selectedStatus && selectedStatus !== 'all') {
-            filtered = mockTransactions.filter(txn => txn.status === selectedStatus);
-        }
-
-        this.totalPages = 1;
-        this.updateTransactionCount(filtered.length);
-        this.renderTransactions(filtered);
-        this.updatePagination();
-        this.checkPendingTxnOpen();
     }
 
     showLoading() {
@@ -390,6 +316,7 @@ class TransactionsManager {
 
     renderTransactionRow(txn) {
         const date = new Date(txn.date || txn.created_at).toLocaleDateString();
+        // Backend provides total_amount in dollars - just use it
         const amount = this.formatCurrency(txn.total_amount || this.calculateTotal(txn.lines));
         const status = txn.status || 'draft';
         const safeId = this.escapeHtml(txn.id || '');
@@ -556,15 +483,8 @@ class TransactionsManager {
 
     async viewTransaction(id) {
         try {
-            // Try API first, fallback to mock data
-            let txn;
-            try {
-                const result = await api.getTransaction(id, this.selectedCompanyId);
-                txn = result?.data;
-            } catch {
-                // Fallback to mock data
-                txn = this.getMockTransaction(id);
-            }
+            const result = await api.getTransaction(id, this.selectedCompanyId);
+            const txn = result?.data;
 
             if (!txn) throw new Error('Transaction not found');
 
@@ -576,87 +496,17 @@ class TransactionsManager {
         }
     }
 
-    getMockTransaction(id) {
-        const mockData = {
-            'TXN-2024-001': {
-                id: 'TXN-2024-001',
-                reference_number: 'JE-2024-001',
-                description: 'Tuition Fee Collection - 1st Semester',
-                date: '2024-12-18',
-                status: 'pending',
-                total_amount: 45000.00,
-                scenario: 'Receivable Collection',
-                scenario_detail: 'Payment received. Increases Cash, decreases Receivable/Revenue recognition.',
-                lines: [
-                    { account_name: 'Cash in Bank - BDO', debit: 45000, credit: 0 },
-                    { account_name: 'Tuition Revenue', debit: 0, credit: 45000 }
-                ]
-            },
-            'TXN-2024-002': {
-                id: 'TXN-2024-002',
-                reference_number: 'PD-2024-001',
-                description: 'Faculty Payroll Disbursement - December',
-                date: '2024-12-15',
-                status: 'pending',
-                total_amount: 128500.00,
-                scenario: 'Expense Payment',
-                scenario_detail: 'Disbursement for operating expenses. Increases Expense, decreases Cash.',
-                lines: [
-                    { account_name: 'Salaries Expense - Faculty', debit: 128500, credit: 0 },
-                    { account_name: 'Cash in Bank - BDO', debit: 0, credit: 128500 }
-                ]
-            },
-            'TXN-2024-003': {
-                id: 'TXN-2024-003',
-                reference_number: 'UP-2024-001',
-                description: 'Utility Payment - DECECO Electric',
-                date: '2024-12-10',
-                status: 'pending',
-                total_amount: 8750.00,
-                scenario: 'Liability Settlement',
-                scenario_detail: 'Payment to vendor. Decreases Payable/Cash.',
-                lines: [
-                    { account_name: 'Utilities Expense', debit: 8750, credit: 0 },
-                    { account_name: 'Cash in Bank - BDO', debit: 0, credit: 8750 }
-                ]
-            },
-            'TXN-2024-004': {
-                id: 'TXN-2024-004',
-                reference_number: 'JE-2024-002',
-                description: 'Laboratory Equipment Purchase',
-                date: '2024-12-08',
-                status: 'posted',
-                total_amount: 75000.00,
-                scenario: 'Asset Acquisition',
-                scenario_detail: 'Capital expenditure. Increases Fixed Asset, decreases Cash.',
-                lines: [
-                    { account_name: 'Laboratory Equipment', debit: 75000, credit: 0 },
-                    { account_name: 'Cash in Bank - BDO', debit: 0, credit: 75000 }
-                ]
-            },
-            'TXN-2024-005': {
-                id: 'TXN-2024-005',
-                reference_number: 'JE-2024-003',
-                description: 'Fund Allocation',
-                date: '2024-12-05',
-                status: 'posted',
-                total_amount: 25000.00,
-                scenario: 'Internal Transfer',
-                scenario_detail: 'Inter-account transfer. No net effect on total equity.',
-                lines: [
-                    { account_name: 'Activity Fund', debit: 25000, credit: 0 },
-                    { account_name: 'General Fund', debit: 0, credit: 25000 }
-                ]
-            }
-        };
-        return mockData[id];
-    }
-
     renderTransactionDetail(txn) {
         const date = new Date(txn.date || txn.created_at).toLocaleDateString();
         const status = txn.status || 'draft';
         const totalDebit = (txn.lines || []).reduce((sum, l) => sum + (l.debit || 0), 0);
         const totalCredit = (txn.lines || []).reduce((sum, l) => sum + (l.credit || 0), 0);
+
+        // Pre-escape values for security
+        // Backend provides total_amount in dollars - just use it
+        const safeDate = this.escapeHtml(date);
+        const safeStatus = this.escapeHtml(status);
+        const safeAmount = this.escapeHtml(this.formatCurrency(txn.total_amount || totalDebit));
 
         this.elements.detailContent.innerHTML = `
             <div class="detail-section">
@@ -668,15 +518,15 @@ class TransactionsManager {
                     </div>
                     <div class="detail-item">
                         <label>Date</label>
-                        <span>${date}</span>
+                        <span>${safeDate}</span>
                     </div>
                     <div class="detail-item">
                         <label>Status</label>
-                        <span><span class="status-badge ${status}">${status}</span></span>
+                        <span><span class="status-badge ${safeStatus}">${safeStatus}</span></span>
                     </div>
                     <div class="detail-item">
                         <label>Amount</label>
-                        <span class="amount-highlight">${this.formatCurrency(txn.total_amount)}</span>
+                        <span class="amount-highlight">${safeAmount}</span>
                     </div>
                 </div>
             </div>
@@ -684,12 +534,29 @@ class TransactionsManager {
                 <h4>Description</h4>
                 <p>${this.escapeHtml(txn.description || 'No description')}</p>
             </div>
-            ${txn.scenario ? `
+            ${this.renderScenarioSection(txn)}
+            ${this.renderJournalLinesTable(txn, totalDebit, totalCredit)}
+            ${this.renderReviewSection(status)}
+        `;
+
+        this.elements.detailActions.innerHTML = this.renderDetailActions(txn.id, status);
+    }
+
+    renderScenarioSection(txn) {
+        if (!txn.scenario) return '';
+        return `
             <div class="detail-section scenario-section">
                 <div class="scenario-badge">${this.escapeHtml(txn.scenario)}</div>
                 <p class="scenario-detail">${this.escapeHtml(txn.scenario_detail || '')}</p>
             </div>
-            ` : ''}
+        `;
+    }
+
+    renderJournalLinesTable(txn, totalDebit, totalCredit) {
+        const safeTotalDebit = this.escapeHtml(this.formatCurrency(totalDebit));
+        const safeTotalCredit = this.escapeHtml(this.formatCurrency(totalCredit));
+
+        return `
             <div class="detail-section">
                 <h4>Journal Lines</h4>
                 <table class="lines-table">
@@ -704,19 +571,24 @@ class TransactionsManager {
                         ${(txn.lines || []).map(line => `
                             <tr>
                                 <td>${this.escapeHtml(line.account_name || line.account_id)}</td>
-                                <td class="amount debit">${line.debit > 0 ? this.formatCurrency(line.debit) : ''}</td>
-                                <td class="amount credit">${line.credit > 0 ? this.formatCurrency(line.credit) : ''}</td>
+                                <td class="amount debit">${line.debit > 0 ? this.escapeHtml(this.formatCurrency(line.debit)) : ''}</td>
+                                <td class="amount credit">${line.credit > 0 ? this.escapeHtml(this.formatCurrency(line.credit)) : ''}</td>
                             </tr>
                         `).join('')}
                         <tr class="totals-row">
                             <td><strong>Total</strong></td>
-                            <td class="amount debit"><strong>${this.formatCurrency(totalDebit)}</strong></td>
-                            <td class="amount credit"><strong>${this.formatCurrency(totalCredit)}</strong></td>
+                            <td class="amount debit"><strong>${safeTotalDebit}</strong></td>
+                            <td class="amount credit"><strong>${safeTotalCredit}</strong></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-            ${status === 'pending' ? `
+        `;
+    }
+
+    renderReviewSection(status) {
+        if (status !== 'pending') return '';
+        return `
             <div class="detail-section">
                 <h4>Review Decision</h4>
                 <div class="form-group">
@@ -724,31 +596,32 @@ class TransactionsManager {
                     <textarea id="reviewReason" class="form-control" rows="3" placeholder="Enter reason for approval or rejection..."></textarea>
                 </div>
             </div>
-            ` : ''}
         `;
+    }
 
-        // Render action buttons based on status
-        let actions = '<button class="btn btn-secondary" onclick="transactionsManager.closeDetailModal()">Close</button>';
+    renderDetailActions(txnId, status) {
+        const safeId = this.escapeHtml(txnId);
 
         if (status === 'pending') {
-            actions = `
+            return `
                 <button class="btn btn-secondary" onclick="transactionsManager.closeDetailModal()">Close</button>
-                <button class="btn btn-danger" onclick="transactionsManager.rejectTransaction('${txn.id}')">Reject</button>
-                <button class="btn btn-success" onclick="transactionsManager.approveTransaction('${txn.id}')">Approve</button>
-            `;
-        } else if (status === 'approved') {
-            actions = `
-                <button class="btn btn-secondary" onclick="transactionsManager.closeDetailModal()">Close</button>
-                <button class="btn btn-primary" onclick="transactionsManager.postTransaction('${txn.id}')">Post Transaction</button>
-            `;
-        } else if (status === 'posted') {
-            actions = `
-                <button class="btn btn-secondary" onclick="transactionsManager.closeDetailModal()">Close</button>
-                <button class="btn btn-danger" onclick="transactionsManager.voidTransaction('${txn.id}')">Void Transaction</button>
+                <button class="btn btn-danger" onclick="transactionsManager.rejectTransaction('${safeId}')">Reject</button>
+                <button class="btn btn-success" onclick="transactionsManager.approveTransaction('${safeId}')">Approve</button>
             `;
         }
-
-        this.elements.detailActions.innerHTML = actions;
+        if (status === 'approved') {
+            return `
+                <button class="btn btn-secondary" onclick="transactionsManager.closeDetailModal()">Close</button>
+                <button class="btn btn-primary" onclick="transactionsManager.postTransaction('${safeId}')">Post Transaction</button>
+            `;
+        }
+        if (status === 'posted') {
+            return `
+                <button class="btn btn-secondary" onclick="transactionsManager.closeDetailModal()">Close</button>
+                <button class="btn btn-danger" onclick="transactionsManager.voidTransaction('${safeId}')">Void Transaction</button>
+            `;
+        }
+        return '<button class="btn btn-secondary" onclick="transactionsManager.closeDetailModal()">Close</button>';
     }
 
     closeDetailModal() {
@@ -802,7 +675,8 @@ class TransactionsManager {
         // Populate transaction summary
         const txn = this.currentDetailTxn;
         if (txn) {
-            this.elements.confirmAmount.textContent = this.formatCurrency(txn.total_amount);
+            // Backend provides total_amount in dollars - just use it
+            this.elements.confirmAmount.textContent = this.formatCurrency(txn.total_amount || 0);
             this.elements.confirmDescription.textContent = txn.description || '-';
 
             // Generate impact preview
@@ -818,7 +692,7 @@ class TransactionsManager {
                     <div class="impact-account">
                         <span class="account-name">${this.escapeHtml(line.account_name)}</span>
                         <span class="impact-type ${impactType}">${impactLabel}</span>
-                        <span style="font-family: monospace; color: #fff;">${this.formatCurrency(amount)}</span>
+                        <span style="font-family: monospace; color: #fff;">${this.escapeHtml(this.formatCurrency(amount))}</span>
                     </div>
                 `;
             });

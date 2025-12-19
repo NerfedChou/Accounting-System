@@ -141,6 +141,7 @@ $router->post('/api/v1/setup/init', [$setupController, 'init']);
 $router->post('/api/v1/setup/complete', [$setupController, 'complete']);
 
 // Company routes
+$router->get('/api/v1/companies', [$companyController, 'list']);
 $router->post('/api/v1/companies', [$companyController, 'create']);
 $router->get('/api/v1/companies/{id}', [$companyController, 'get']);
 
