@@ -6,8 +6,8 @@ namespace Tests\Unit\Domain\Identity\Repository;
 
 use Domain\Identity\Entity\User;
 use Domain\Identity\Repository\UserRepositoryInterface;
-use Domain\Identity\ValueObject\Email;
 use Domain\Identity\ValueObject\UserId;
+use Domain\Shared\ValueObject\Email;
 
 /**
  * In-memory implementation of UserRepositoryInterface for testing.
