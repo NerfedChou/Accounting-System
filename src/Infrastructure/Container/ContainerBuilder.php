@@ -11,7 +11,6 @@ use Domain\Approval\Repository\ApprovalRepositoryInterface;
 use Domain\Audit\Repository\ActivityLogRepositoryInterface;
 use Domain\ChartOfAccounts\Repository\AccountRepositoryInterface;
 use Domain\Company\Repository\CompanyRepositoryInterface;
-use Domain\Identity\Repository\SessionRepositoryInterface;
 use Domain\Identity\Repository\UserRepositoryInterface;
 use Domain\Identity\Service\AuthenticationServiceInterface;
 use Domain\Ledger\Repository\LedgerRepositoryInterface;
@@ -110,10 +109,6 @@ final class ContainerBuilder
 
         $container->singleton(LedgerRepositoryInterface::class, fn(ContainerInterface $c) =>
             new MysqlLedgerRepository($c->get(PDO::class))
-        );
-
-        $container->singleton(SessionRepositoryInterface::class, fn(ContainerInterface $c) =>
-            new MysqlSessionRepository($c->get(PDO::class))
         );
 
         $container->singleton(ApprovalRepositoryInterface::class, fn(ContainerInterface $c) =>
