@@ -55,4 +55,6 @@ interface TransactionRepositoryInterface
      * Count all transactions created today system-wide.
      */
     public function countToday(): int;
+
+    public function delete(TransactionId $id): void;
 }

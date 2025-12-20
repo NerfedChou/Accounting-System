@@ -64,6 +64,31 @@ abstract class AbstractMysqlRepository
     }
 
     /**
+     * Execute a query with pagination (strict LIMIT/OFFSET binding).
+     *
+     * @param string $sql SQL query without LIMIT/OFFSET
+     * @param array<string, mixed> $params
+     * @param \Domain\Shared\ValueObject\Pagination $pagination
+     * @return array<int, array<string, mixed>>
+     */
+    protected function fetchPaged(string $sql, array $params, \Domain\Shared\ValueObject\Pagination $pagination): array
+    {
+        $sql .= ' LIMIT :limit OFFSET :offset';
+        
+        $stmt = $this->connection->prepare($sql);
+        
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(":$key", $value);
+        }
+        
+        $stmt->bindValue(':limit', $pagination->limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $pagination->offset, PDO::PARAM_INT);
+        
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Execute a query and return a single row.
      *
      * @param string $sql

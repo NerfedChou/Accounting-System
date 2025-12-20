@@ -46,4 +46,34 @@ final class DashboardController
             return JsonResponse::error($e->getMessage(), 500);
         }
     }
+
+    /**
+     * GET /api/v1/dashboard/recent-approvals
+     * Returns the most recent 5 pending approvals system-wide.
+     */
+    public function recentApprovals(ServerRequestInterface $request): ResponseInterface
+    {
+        try {
+            $approvals = $this->approvalRepository->findRecentPending(5);
+            
+            $data = array_map(function($approval) {
+                return [
+                    'id' => $approval['id'],
+                    'company_id' => $approval['company_id'],
+                    'company_name' => $approval['company_name'] ?? 'Unknown Company',
+                    'entity_type' => $approval['entity_type'],
+                    'entity_id' => $approval['entity_id'],
+                    'reason' => $approval['reason'] ?? 'Pending approval',
+                    'status' => $approval['status'],
+                    'amount_cents' => (int)($approval['amount_cents'] ?? 0),
+                    'priority' => (int)($approval['priority'] ?? 0),
+                    'requested_at' => (new \DateTimeImmutable($approval['requested_at']))->format('Y-m-d\TH:i:s\Z'),
+                ];
+            }, $approvals);
+            
+            return JsonResponse::success($data);
+        } catch (\Throwable $e) {
+            return JsonResponse::error($e->getMessage(), 500);
+        }
+    }
 }

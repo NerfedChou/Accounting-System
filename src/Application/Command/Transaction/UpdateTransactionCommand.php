@@ -7,16 +7,17 @@ namespace Application\Command\Transaction;
 use Application\Command\CommandInterface;
 
 /**
- * Command to create a new transaction.
+ * Command to update an existing draft transaction.
  */
-final readonly class CreateTransactionCommand implements CommandInterface
+final readonly class UpdateTransactionCommand implements CommandInterface
 {
     /**
      * @param TransactionLineData[] $lines
      */
     public function __construct(
+        public string $transactionId,
         public string $companyId,
-        public string $createdBy,
+        public string $updatedBy,
         public string $description,
         public string $currency,
         public array $lines,

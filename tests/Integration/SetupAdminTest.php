@@ -53,9 +53,10 @@ class SetupAdminTest extends TestCase
 
         // 3. Complete Setup
         // Generate valid OTP code
-        // We can reuse the TotpService or implement a simple generator here since the logic is standard
-        $totpService = new TotpService();
-        $code = $this->generateCode($secret); 
+        // Generate valid OTP code
+        // Use the container's TotpService to generate a code for the current time
+        $totpService = $this->container->get(TotpService::class);
+        $code = $totpService->generateCode($secret); 
 
         $payload = [
             'username' => 'admin',
@@ -100,46 +101,5 @@ class SetupAdminTest extends TestCase
         return $request->withMethod($method)->withUri($uri);
     }
 
-    private function generateCode(string $secret): string
-    {
-        // Simple TOTP generation for test
-        $timeSlice = floor(time() / 30);
-        $secretKey = $this->base32Decode($secret);
-        $timestamp = pack('N*', 0) . pack('N*', $timeSlice);
-        $hash = hash_hmac('sha1', $timestamp, $secretKey, true);
-        $offset = ord($hash[19]) & 0xf;
-        $otp = (
-            ((ord($hash[$offset+0]) & 0x7f) << 24 ) |
-            ((ord($hash[$offset+1]) & 0xff) << 16 ) |
-            ((ord($hash[$offset+2]) & 0xff) << 8 ) |
-            (ord($hash[$offset+3]) & 0xff)
-        ) % 1000000;
-        
-        return str_pad((string)$otp, 6, '0', STR_PAD_LEFT);
-    }
 
-    private function base32Decode(string $base32): string
-    {
-        $base32 = strtoupper($base32);
-        if (!preg_match('/^[A-Z2-7]+$/', $base32)) {
-            throw new \InvalidArgumentException('Invalid Base32 characters');
-        }
-
-        $map = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-        $binary = '';
-        $buffer = 0;
-        $bufferSize = 0;
-
-        for ($i = 0; $i < strlen($base32); $i++) {
-            $buffer = ($buffer << 5) | strpos($map, $base32[$i]);
-            $bufferSize += 5;
-
-            if ($bufferSize >= 8) {
-                $bufferSize -= 8;
-                $binary .= chr(($buffer >> $bufferSize) & 0xFF);
-            }
-        }
-
-        return $binary;
-    }
 }

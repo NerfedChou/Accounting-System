@@ -451,6 +451,11 @@ p {
   font-size: var(--font-size-base);
 }
 
+.btn-sm {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-xs);
+}
+
 .btn-block {
   width: 100%;
 }

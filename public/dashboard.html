@@ -59,7 +59,7 @@
                         </svg>
                         <span class="nav-label">Chart of Accounts</span>
                     </a>
-                    <a href="#" class="nav-item">
+                    <a href="/journal.html" class="nav-item">
                         <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16"
                             height="16" fill="currentColor">
                             <path
@@ -121,7 +121,7 @@
                         </svg>
                         <span class="nav-label">Users</span>
                     </a>
-                    <a href="#" class="nav-item">
+                    <a href="/companies.html" class="nav-item">
                         <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16"
                             height="16" fill="currentColor">
                             <path
@@ -294,7 +294,7 @@
                         <div class="panel-content">
                             <div class="quick-actions">
                                 <div class="quick-action-dropdown" id="approvalDropdown">
-                                    <button class="quick-action-btn has-alert" id="btnPendingApprovals">
+                                    <button class="quick-action-btn" id="btnPendingApprovals">
                                         <div class="glass-sheen"></div>
                                         <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
                                             width="24" height="24" fill="currentColor">
@@ -304,59 +304,15 @@
                                             </path>
                                         </svg>
                                         <span class="action-label">Pending Approvals</span>
-                                        <span class="action-badge" id="approvalBadge">3</span>
+                                        <span class="action-badge" id="approvalBadge" style="display: none;">0</span>
                                     </button>
                                     <div class="dropdown-menu" id="approvalDropdownMenu">
                                         <div class="dropdown-header">Recent Pending Approvals</div>
-                                        <a href="/transactions.html?status=pending&company=1&txn=TXN-2024-001"
-                                            class="dropdown-item">
-                                            <div class="dropdown-item-icon warning">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14"
-                                                    height="14" fill="currentColor">
-                                                    <path
-                                                        d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm1 6a1 1 0 1 0-2 0 1 1 0 0 0 2 0Z">
-                                                    </path>
-                                                </svg>
+                                        <div id="approvalsList">
+                                            <div class="dropdown-empty">
+                                                <p>No pending approvals</p>
                                             </div>
-                                            <div class="dropdown-item-content">
-                                                <span class="dropdown-item-title">Journal Entry #TXN-2024-001</span>
-                                                <span class="dropdown-item-meta">Metro Dumaguete College •
-                                                    ₱45,000.00</span>
-                                            </div>
-                                        </a>
-                                        <a href="/transactions.html?status=pending&company=1&txn=TXN-2024-002"
-                                            class="dropdown-item">
-                                            <div class="dropdown-item-icon warning">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14"
-                                                    height="14" fill="currentColor">
-                                                    <path
-                                                        d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm1 6a1 1 0 1 0-2 0 1 1 0 0 0 2 0Z">
-                                                    </path>
-                                                </svg>
-                                            </div>
-                                            <div class="dropdown-item-content">
-                                                <span class="dropdown-item-title">Payroll Disbursement
-                                                    #TXN-2024-002</span>
-                                                <span class="dropdown-item-meta">Metro Dumaguete College •
-                                                    ₱128,500.00</span>
-                                            </div>
-                                        </a>
-                                        <a href="/transactions.html?status=pending&company=1&txn=TXN-2024-003"
-                                            class="dropdown-item">
-                                            <div class="dropdown-item-icon warning">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14"
-                                                    height="14" fill="currentColor">
-                                                    <path
-                                                        d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm1 6a1 1 0 1 0-2 0 1 1 0 0 0 2 0Z">
-                                                    </path>
-                                                </svg>
-                                            </div>
-                                            <div class="dropdown-item-content">
-                                                <span class="dropdown-item-title">Utility Payment #TXN-2024-003</span>
-                                                <span class="dropdown-item-meta">Metro Dumaguete College •
-                                                    ₱8,750.00</span>
-                                            </div>
-                                        </a>
+                                        </div>
                                         <div class="dropdown-footer">
                                             <a href="/transactions.html?status=pending">View All Pending →</a>
                                         </div>

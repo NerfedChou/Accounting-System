@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Accounting System - Transaction Management">
-    <title>TRANSACTIONS | Accounting System</title>
+    <meta name="description" content="Accounting System - Company Management">
+    <title>COMPANIES | Accounting System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="/assets/css/app.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/components.css">
-    <link rel="stylesheet" href="/assets/css/transactions.css">
+    <link rel="stylesheet" href="/assets/css/companies.css">
 </head>
 
 <body>
@@ -43,7 +43,7 @@
                         </svg>
                         <span class="nav-label">Dashboard</span>
                     </a>
-                    <a href="/transactions.html" class="nav-item active">
+                    <a href="/transactions.html" class="nav-item">
                         <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16"
                             height="16" fill="currentColor">
                             <path
@@ -123,7 +123,7 @@
                         </svg>
                         <span class="nav-label">Users</span>
                     </a>
-                    <a href="/companies.html" class="nav-item">
+                    <a href="/companies.html" class="nav-item active">
                         <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16"
                             height="16" fill="currentColor">
                             <path
@@ -171,85 +171,69 @@
             <!-- Top Bar -->
             <header class="top-bar">
                 <div class="page-title">
-                    <h1>Transactions</h1>
-                    <span class="badge badge-info" id="transactionCount">Loading...</span>
+                    <h1>Companies</h1>
+                    <span class="badge badge-info" id="companyCount">Loading...</span>
                 </div>
                 <div class="top-bar-actions">
-                    <button class="btn btn-primary" id="btnNewTransaction">
-                        + New Transaction
+                    <button class="btn btn-primary" id="btnNewCompany">
+                        + New Company
                     </button>
                 </div>
             </header>
 
-            <!-- Transaction Content -->
-            <div class="content-area">
+            <!-- Content Section -->
+            <div class="content-section">
                 <!-- Filter Bar -->
                 <div class="filter-bar">
                     <div class="filter-group">
-                        <label>Company:</label>
-                        <select id="filterCompany" class="form-select">
-                            <option value="">Loading companies...</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
                         <label>Status:</label>
-                        <select id="filterStatus" class="form-select">
+                        <select class="form-select" id="filterStatus">
                             <option value="">All</option>
-                            <option value="draft">Draft</option>
-                            <option value="pending">Pending Approval</option>
-                            <option value="approved">Approved</option>
-                            <option value="posted">Posted</option>
-                            <option value="voided">Voided</option>
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                            <option value="suspended">Suspended</option>
                         </select>
                     </div>
-                    <div class="filter-group" style="margin-left: auto;">
-                        <button class="btn btn-secondary" id="btnRefresh">Refresh</button>
-                    </div>
+                    <button class="btn btn-secondary" id="btnRefresh">Refresh</button>
                 </div>
 
-                <!-- Transactions Table -->
+                <!-- Companies Table -->
                 <div class="panel">
                     <div class="table-container">
-                        <table class="data-table" id="transactionsTable">
+                        <table class="data-table" id="companiesTable">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Date</th>
-                                    <th>Description</th>
-                                    <th>Amount</th>
+                                    <th>Name</th>
+                                    <th>Legal Name</th>
+                                    <th>Tax ID</th>
+                                    <th>Currency</th>
                                     <th>Status</th>
+                                    <th>Created</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="transactionsBody">
-                                <tr class="loading-row">
-                                    <td colspan="6">
-                                        <div class="loading-spinner">Loading transactions...</div>
+                            <tbody id="companiesBody">
+                                <tr>
+                                    <td colspan="7">
+                                        <div class="loading-spinner">Loading companies...</div>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-
-                    <!-- Pagination -->
-                    <div class="pagination" id="pagination">
-                        <button class="btn btn-sm" id="btnPrevPage" disabled>← Previous</button>
-                        <span class="page-info" id="pageInfo">Page 1</span>
-                        <button class="btn btn-sm" id="btnNextPage">Next →</button>
-                    </div>
                 </div>
 
                 <!-- Empty State -->
                 <div class="empty-state" id="emptyState" style="display: none;">
-                    <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="48"
-                        height="48" fill="currentColor">
+                    <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="64"
+                        height="64" fill="currentColor">
                         <path
-                            d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25ZM6.5 6.5v8h7.75a.25.25 0 0 0 .25-.25V6.5Zm8-1.5V1.75a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25V5Z">
+                            d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v4c0 .372-.116.717-.314 1 .198.283.314.628.314 1v4a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 12.75v-4c0-.372.116-.717.314-1a1.739 1.739 0 0 1-.314-1v-4C0 1.784.784 1 1.75 1ZM1.5 2.75v4c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-4a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25Zm.25 5.75a.25.25 0 0 0-.25.25v4c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-4a.25.25 0 0 0-.25-.25Z">
                         </path>
                     </svg>
-                    <h3>No Transactions Found</h3>
-                    <p>Create your first transaction to get started.</p>
-                    <button class="btn btn-primary" id="btnCreateFirst">Create Transaction</button>
+                    <h3>No Companies Found</h3>
+                    <p>Create your first company to get started.</p>
+                    <button class="btn btn-primary" id="btnCreateFirst">Create Company</button>
                 </div>
             </div>
 
@@ -260,116 +244,92 @@
         </main>
     </div>
 
-    <!-- New Transaction Modal -->
-    <div class="modal" id="transactionModal">
+    <!-- New Company Modal -->
+    <div class="modal" id="companyModal">
         <div class="modal-backdrop"></div>
-        <div class="modal-content">
+        <div class="modal-content modal-md">
             <div class="modal-header">
-                <h2 id="modalTitle">New Transaction</h2>
+                <h2 id="modalTitle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v20M2 12h20" />
+                    </svg>
+                    New Company
+                </h2>
                 <button class="modal-close" id="btnCloseModal">&times;</button>
             </div>
-            <form id="transactionForm">
+            <form id="companyForm">
                 <div class="modal-body">
+                    <!-- Required Fields -->
                     <div class="form-group">
-                        <label for="txnDate">Transaction Date</label>
-                        <input type="date" id="txnDate" name="date" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="txnDescription">Description</label>
-                        <input type="text" id="txnDescription" name="description" class="form-input"
-                            placeholder="Enter transaction description" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="txnReference">Reference Number</label>
-                        <input type="text" id="txnReference" name="reference" class="form-input"
-                            placeholder="Optional reference">
+                        <label for="companyName">Company Name <span class="required">*</span></label>
+                        <input type="text" class="form-input" id="companyName" required
+                            placeholder="e.g., Acme Corporation">
                     </div>
 
-                    <!-- Transaction Lines -->
+                    <div class="form-group">
+                        <label for="legalName">Legal Name <span class="required">*</span></label>
+                        <input type="text" class="form-input" id="legalName" required
+                            placeholder="e.g., Acme Corporation Inc.">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taxId">Tax ID <span class="required">*</span></label>
+                            <input type="text" class="form-input" id="taxId" required placeholder="e.g., 12-3456789">
+                        </div>
+                        <div class="form-group">
+                            <label for="currency">Currency</label>
+                            <select class="form-select" id="currency">
+                                <option value="USD">USD - US Dollar</option>
+                                <option value="EUR">EUR - Euro</option>
+                                <option value="PHP">PHP - Philippine Peso</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Address Section (Optional) -->
                     <div class="form-section">
-                        <div class="section-header">
-                            <h3>Transaction Lines</h3>
-                            <button type="button" class="btn btn-sm btn-secondary" id="btnAddLine">+ Add Line</button>
+                        <span class="form-section-title">Address (Optional)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="street">Street Address</label>
+                        <input type="text" class="form-input" id="street" placeholder="e.g., 123 Main Street">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="city">City</label>
+                            <input type="text" class="form-input" id="city" placeholder="e.g., New York">
                         </div>
-                        <div class="lines-container" id="linesContainer">
-                            <!-- Lines will be added dynamically -->
+                        <div class="form-group">
+                            <label for="state">State/Province</label>
+                            <input type="text" class="form-input" id="state" placeholder="e.g., NY">
                         </div>
-                        <div class="balance-check" id="balanceCheck">
-                            <span>Total Debits: <strong id="totalDebits">0.00</strong></span>
-                            <span>Total Credits: <strong id="totalCredits">0.00</strong></span>
-                            <span class="balance-status" id="balanceStatus">⚠️ Unbalanced</span>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="postalCode">Postal Code</label>
+                            <input type="text" class="form-input" id="postalCode" placeholder="e.g., 10001">
+                        </div>
+                        <div class="form-group">
+                            <label for="country">Country</label>
+                            <input type="text" class="form-input" id="country" value="US" placeholder="e.g., US">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="btnCancelTransaction">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="btnSubmitTransaction" disabled>
-                        Create Transaction
-                    </button>
+                    <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnSubmit">Create Company</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Transaction Detail Modal -->
-    <div class="modal" id="detailModal">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Transaction Details</h2>
-                <button class="modal-close" id="btnCloseDetail">&times;</button>
-            </div>
-            <div class="modal-body" id="detailContent">
-                <!-- Details loaded dynamically -->
-            </div>
-            <div class="modal-footer" id="detailActions">
-                <!-- Actions based on status -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Confirmation Modal -->
-    <div class="confirm-modal" id="confirmModal">
-        <div class="modal-backdrop"></div>
-        <div class="confirm-content">
-            <h3 class="confirm-title" id="confirmTitle">Confirm Action</h3>
-
-            <!-- Transaction Summary -->
-            <div class="confirm-summary" id="confirmSummary">
-                <div class="summary-row">
-                    <span class="summary-label">Amount</span>
-                    <span class="summary-value" id="confirmAmount">$0.00</span>
-                </div>
-                <div class="summary-row">
-                    <span class="summary-label">Description</span>
-                    <span class="summary-value" id="confirmDescription">-</span>
-                </div>
-            </div>
-
-            <!-- Impact Preview -->
-            <div class="impact-preview" id="impactPreview">
-                <div class="impact-header">Impact Preview</div>
-                <div class="impact-accounts" id="impactAccounts">
-                    <!-- Accounts will be populated dynamically -->
-                </div>
-                <div class="impact-result" id="impactResult">
-                    <!-- Result message -->
-                </div>
-            </div>
-
-            <div class="confirm-input" id="confirmInputWrapper" style="display: none;">
-                <label for="confirmReason">Reason / Notes</label>
-                <textarea id="confirmReason" class="form-control" rows="2" placeholder="Enter reason..."></textarea>
-            </div>
-            <div class="confirm-actions">
-                <button class="btn btn-secondary" id="btnConfirmCancel">Cancel</button>
-                <button class="btn" id="btnConfirmAction">Confirm</button>
-            </div>
-        </div>
-    </div>
-
     <script src="/assets/js/api.js"></script>
-    <script src="/assets/js/transactions.js"></script>
+    <script src="/assets/js/companies.js"></script>
 </body>
 
 </html>

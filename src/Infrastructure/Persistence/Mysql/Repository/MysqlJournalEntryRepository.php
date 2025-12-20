@@ -74,6 +74,46 @@ final class MysqlJournalEntryRepository extends AbstractMysqlRepository implemen
         return ContentHash::fromContent($row['content_hash']);
     }
 
+    public function findById(string $id): ?JournalEntry
+    {
+        $row = $this->fetchOne(
+            'SELECT * FROM journal_entries WHERE id = :id',
+            ['id' => $id]
+        );
+
+        if ($row === null) {
+            return null;
+        }
+
+        return $this->hydrate($row);
+    }
+
+    public function findByCompanyPaginated(CompanyId $companyId, int $page, int $perPage): array
+    {
+        $offset = ($page - 1) * $perPage;
+        
+        $rows = $this->fetchAll(
+            'SELECT * FROM journal_entries WHERE company_id = :company_id ORDER BY occurred_at DESC LIMIT :limit OFFSET :offset',
+            [
+                'company_id' => $companyId->toString(),
+                'limit' => $perPage,
+                'offset' => $offset,
+            ]
+        );
+
+        return array_map(fn($row) => $this->hydrate($row), $rows);
+    }
+
+    public function countByCompany(CompanyId $companyId): int
+    {
+        $row = $this->fetchOne(
+            'SELECT COUNT(*) as total FROM journal_entries WHERE company_id = :company_id',
+            ['company_id' => $companyId->toString()]
+        );
+
+        return (int) ($row['total'] ?? 0);
+    }
+
     private function hydrate(array $row): JournalEntry
     {
         $previousHash = $row['previous_hash'] 

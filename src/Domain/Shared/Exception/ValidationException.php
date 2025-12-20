@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Domain\Shared\Exception;
 
-final class ValidationException extends DomainException
+final class ValidationException extends DomainException implements SafeToExposeInterface
 {
     /**
      * @param array<string, string> $errors

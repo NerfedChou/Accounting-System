@@ -14,7 +14,14 @@ final class TotpService
 {
     private const DIGITS = 6;
     private const PERIOD = 30;
-    private const ALGO = 'sha1';
+    
+    public function __construct(
+        private readonly string $algorithm = 'sha1'
+    ) {
+        if (!in_array(strtolower($this->algorithm), ['sha1', 'sha256', 'sha512'])) {
+            throw new InvalidArgumentException('Unsupported algorithm. Use sha1, sha256, or sha512.');
+        }
+    }
 
     /**
      * Generate a new random base32 equivalent secret.
@@ -54,6 +61,17 @@ final class TotpService
     }
 
     /**
+     * Generate the current OTP code for a secret.
+     * Useful for displaying the code to the user or for testing.
+     */
+    public function generateCode(string $secret, ?int $timestamp = null): string
+    {
+        $timestamp ??= time();
+        $timeSlice = (int) floor($timestamp / self::PERIOD);
+        return $this->calculateCode($secret, $timeSlice);
+    }
+
+    /**
      * Calculate code for a specific time slice.
      */
     private function calculateCode(string $secret, int $timeSlice): string
@@ -64,8 +82,8 @@ final class TotpService
         // Decode Base32 Secret
         $secretKey = $this->base32Decode($secret);
 
-        // HMAC-SHA1
-        $hash = hash_hmac(self::ALGO, $timePacked, $secretKey, true);
+        // HMAC
+        $hash = hash_hmac($this->algorithm, $timePacked, $secretKey, true);
 
         // Dynamic truncation
         $offset = ord(substr($hash, -1)) & 0xF;
@@ -114,6 +132,7 @@ final class TotpService
     {
         $user = rawurlencode($user);
         $issuer = rawurlencode($issuer);
-        return "otpauth://totp/{$issuer}:{$user}?secret={$secret}&issuer={$issuer}&algorithm=SHA1&digits=6&period=30";
+        $algo = strtoupper($this->algorithm);
+        return "otpauth://totp/{$issuer}:{$user}?secret={$secret}&issuer={$issuer}&algorithm={$algo}&digits=6&period=30";
     }
 }

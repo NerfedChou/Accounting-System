@@ -17,7 +17,9 @@ use Api\Middleware\ErrorHandlerMiddleware;
 use Api\Request\ServerRequest;
 use Api\Router;
 use Application\Handler\Transaction\CreateTransactionHandler;
+use Application\Handler\Transaction\DeleteTransactionHandler;
 use Application\Handler\Transaction\PostTransactionHandler;
+use Application\Handler\Transaction\UpdateTransactionHandler;
 use Application\Handler\Transaction\VoidTransactionHandler;
 use Domain\ChartOfAccounts\Repository\AccountRepositoryInterface;
 use Domain\Approval\Repository\ApprovalRepositoryInterface;
@@ -67,6 +69,8 @@ $accountController = new AccountController(
 $transactionController = new TransactionController(
     $container->get(TransactionRepositoryInterface::class),
     $container->get(CreateTransactionHandler::class),
+    $container->get(UpdateTransactionHandler::class),
+    $container->get(DeleteTransactionHandler::class),
     $container->get(PostTransactionHandler::class),
     $container->get(VoidTransactionHandler::class)
 );
@@ -148,6 +152,7 @@ $router->post('/api/v1/setup/complete', [$setupController, 'complete']);
 
 // Dashboard routes (system-wide, no company scoping)
 $router->get('/api/v1/dashboard/stats', [$dashboardController, 'stats']);
+$router->get('/api/v1/dashboard/recent-approvals', [$dashboardController, 'recentApprovals']);
 
 // Company routes
 $router->get('/api/v1/companies', [$companyController, 'list']);
@@ -166,6 +171,8 @@ $router->post('/api/v1/companies/{companyId}/accounts/{id}/toggle', [$accountCon
 $router->get('/api/v1/companies/{companyId}/transactions', [$transactionController, 'list']);
 $router->get('/api/v1/companies/{companyId}/transactions/{id}', [$transactionController, 'get']);
 $router->post('/api/v1/companies/{companyId}/transactions', [$transactionController, 'create']);
+$router->put('/api/v1/companies/{companyId}/transactions/{id}', [$transactionController, 'update']);
+$router->delete('/api/v1/companies/{companyId}/transactions/{id}', [$transactionController, 'delete']);
 $router->post('/api/v1/companies/{companyId}/transactions/{id}/post', [$transactionController, 'post']);
 $router->post('/api/v1/companies/{companyId}/transactions/{id}/void', [$transactionController, 'void']);
 
@@ -178,6 +185,14 @@ $router->post('/api/v1/companies/{companyId}/approvals/{id}/reject', [$approvalC
 $router->get('/api/v1/companies/{companyId}/reports', [$reportController, 'list']);
 $router->get('/api/v1/companies/{companyId}/reports/{id}', [$reportController, 'get']);
 $router->post('/api/v1/companies/{companyId}/reports/generate', [$reportController, 'generate']);
+
+// Journal routes
+$journalController = new \Api\Controller\JournalController(
+    $container->get(\Domain\Ledger\Repository\JournalEntryRepositoryInterface::class)
+);
+$router->get('/api/v1/companies/{companyId}/journal', [$journalController, 'list']);
+$router->get('/api/v1/companies/{companyId}/journal/{id}', [$journalController, 'get']);
+
 
 // Dispatch request
 $request = ServerRequest::fromGlobals();

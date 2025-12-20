@@ -7,8 +7,10 @@ namespace Tests\Unit\Domain\Identity\Repository;
 use Domain\Company\ValueObject\CompanyId;
 use Domain\Identity\Entity\User;
 use Domain\Identity\Repository\UserRepositoryInterface;
+use Domain\Identity\ValueObject\Password;
 use Domain\Identity\ValueObject\Role;
 use Domain\Identity\ValueObject\UserId;
+use Domain\Identity\ValueObject\Username;
 use Domain\Shared\ValueObject\Email;
 use PHPUnit\Framework\TestCase;
 
@@ -19,9 +21,9 @@ final class UserRepositoryInterfaceTest extends TestCase
         $repository = $this->createInMemoryRepository();
 
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -37,9 +39,9 @@ final class UserRepositoryInterfaceTest extends TestCase
         $repository = $this->createInMemoryRepository();
 
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -56,9 +58,9 @@ final class UserRepositoryInterfaceTest extends TestCase
         $repository = $this->createInMemoryRepository();
 
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -75,9 +77,9 @@ final class UserRepositoryInterfaceTest extends TestCase
         $repository = $this->createInMemoryRepository();
 
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -95,17 +97,17 @@ final class UserRepositoryInterfaceTest extends TestCase
         $repository = $this->createInMemoryRepository();
 
         $pendingUser = User::register(
-            username: 'pending.user',
+            username: Username::fromString('pending.user'),
             email: Email::fromString('pending@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
 
         $approvedUser = User::register(
-            username: 'approved.user',
+            username: Username::fromString('approved.user'),
             email: Email::fromString('approved@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );

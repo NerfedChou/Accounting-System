@@ -60,9 +60,14 @@ class DashboardManager {
 
     async loadDashboardData() {
         try {
-            // Load company ID first
+            // Try to restore previous selection or default to first company
             const companies = await api.getCompanies();
-            if (companies?.data?.length > 0) {
+            const storedId = localStorage.getItem('company_id');
+            const exists = companies?.data?.some(c => c.id === storedId);
+
+            if (exists) {
+                this.companyId = storedId;
+            } else if (companies?.data?.length > 0) {
                 this.companyId = companies.data[0].id;
                 localStorage.setItem('company_id', this.companyId);
             }
@@ -70,7 +75,7 @@ class DashboardManager {
             const stats = await api.getDashboardStats();
             this.updateStats(stats);
 
-            // Load pending approvals for dropdown
+            // Load GLOBAL pending approvals for dropdown (5 most recent)
             await this.loadPendingApprovalsDropdown();
         } catch (error) {
             console.error('Failed to load dashboard data:', error);
@@ -78,33 +83,33 @@ class DashboardManager {
     }
 
     async loadPendingApprovalsDropdown() {
-        const dropdownMenu = document.getElementById('approvalDropdownMenu');
-        if (!dropdownMenu || !this.companyId) return;
+        const approvalsList = document.getElementById('approvalsList');
+        if (!approvalsList) return;
 
         try {
-            const result = await api.getPendingApprovals(1, 5, this.companyId);
-            // Backend returns flat array directly: {success: true, data: [...]}
+            const result = await api.getGlobalRecentApprovals();
+            // Backend returns: {success: true, data: [...]}
             const approvals = result?.data || [];
 
             if (approvals.length === 0) {
-                dropdownMenu.innerHTML = `
-                    <div class="dropdown-header">No Pending Approvals</div>
-                    <div class="dropdown-footer">
-                        <a href="/transactions.html">View All Transactions →</a>
+                approvalsList.innerHTML = `
+                    <div class="dropdown-empty">
+                        <p>No pending approvals</p>
                     </div>
                 `;
                 return;
             }
 
-            let html = '<div class="dropdown-header">Recent Pending Approvals</div>';
+            let html = '';
 
             for (const approval of approvals) {
                 const amount = this.formatCurrency(approval.amount_cents / 100);
                 const entityId = approval.entity_id || '';
                 const reason = approval.reason || 'Pending approval';
+                const companyName = approval.company_name ? `(${approval.company_name})` : '';
 
                 html += `
-                    <a href="/transactions.html?status=pending&company=${this.companyId}&txn=${entityId}" class="dropdown-item">
+                    <a href="/transactions.html?status=pending&company=${approval.company_id}&txn=${entityId}" class="dropdown-item">
                         <div class="dropdown-item-icon warning">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
                                 <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm1 6a1 1 0 1 0-2 0 1 1 0 0 0 2 0Z"></path>
@@ -112,21 +117,20 @@ class DashboardManager {
                         </div>
                         <div class="dropdown-item-content">
                             <span class="dropdown-item-title">${this.escapeHtml(reason)}</span>
-                            <span class="dropdown-item-meta">Metro Dumaguete College • ${this.escapeHtml(amount)}</span>
+                            <span class="dropdown-item-meta">${this.escapeHtml(amount)} ${this.escapeHtml(companyName)}</span>
                         </div>
                     </a>
                 `;
             }
 
-            html += `
-                <div class="dropdown-footer">
-                    <a href="/transactions.html?status=pending&company=${this.companyId}">View All Pending →</a>
-                </div>
-            `;
-
-            dropdownMenu.innerHTML = html;
+            approvalsList.innerHTML = html;
         } catch (error) {
             console.error('Failed to load pending approvals:', error);
+            approvalsList.innerHTML = `
+                <div class="dropdown-empty">
+                    <p>No pending approvals</p>
+                </div>
+            `;
         }
     }
 

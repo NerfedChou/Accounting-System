@@ -199,11 +199,15 @@ final class MysqlActivityLogRepository extends AbstractMysqlRepository implement
         $sql = "SELECT * FROM activity_logs WHERE {$condition} ORDER BY {$orderBy}";
 
         if ($limit !== null) {
-            $sql .= ' LIMIT :limit OFFSET :offset';
-            $params['limit'] = (int) $limit;
-            $params['offset'] = (int) $offset;
+            $rows = $this->fetchPaged(
+                $sql,
+                $params,
+                new \Domain\Shared\ValueObject\Pagination($limit, $offset)
+            );
+        } else {
+            $rows = $this->fetchAll($sql, $params);
         }
 
-        return $this->queryLogs($sql, $params);
+        return array_map(fn(array $row) => $this->hydrator->hydrate($row), $rows);
     }
 }

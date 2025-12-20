@@ -13,6 +13,7 @@ use Domain\Identity\ValueObject\UserId;
 use Domain\Shared\Event\DomainEvent;
 use Domain\Transaction\Event\TransactionCreated;
 use Domain\Transaction\Event\TransactionPosted;
+use Domain\Transaction\Event\TransactionUpdated;
 use Domain\Transaction\Event\TransactionVoided;
 
 /**
@@ -66,7 +67,25 @@ final class ActivityLogListener
                 )
             );
         }
-        
-        // Add other event handlers here...
+
+        if ($event instanceof TransactionUpdated) {
+            $eventData = $event->toArray();
+            $this->activityLogService->logActivity(
+                new \Domain\Audit\Service\LogActivityRequest(
+                    companyId: $eventData['company_id'],
+                    actor: Actor::user(UserId::fromString($eventData['updated_by']), 'Unknown'),
+                    activityType: ActivityType::TRANSACTION_EDITED,
+                    entityInfo: [
+                        'type' => 'transaction',
+                        'id' => $eventData['transaction_id'],
+                        'action' => 'updated'
+                    ],
+                    stateInfo: [
+                        'new' => $eventData
+                    ],
+                    context: $context
+                )
+            );
+        }
     }
 }

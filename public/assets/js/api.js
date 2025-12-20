@@ -114,6 +114,10 @@ class ApiClient {
         }
     }
 
+    async getGlobalRecentApprovals() {
+        return this.get('/dashboard/recent-approvals');
+    }
+
     // ========== Company APIs ==========
 
     async getCompanies() {
@@ -143,6 +147,16 @@ class ApiClient {
     async createTransaction(data, companyId = null) {
         const cid = companyId || this.getCompanyId();
         return this.post(`/companies/${cid}/transactions`, data);
+    }
+
+    async updateTransaction(id, data, companyId = null) {
+        const cid = companyId || this.getCompanyId();
+        return this.put(`/companies/${cid}/transactions/${id}`, data);
+    }
+
+    async deleteTransaction(id, companyId = null) {
+        const cid = companyId || this.getCompanyId();
+        return this.delete(`/companies/${cid}/transactions/${id}`);
     }
 
     async postTransaction(id, companyId = null) {

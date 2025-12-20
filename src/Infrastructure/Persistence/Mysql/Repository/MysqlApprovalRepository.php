@@ -145,6 +145,22 @@ final class MysqlApprovalRepository extends AbstractMysqlRepository implements A
         return $result !== null ? (int) $result['count'] : 0;
     }
 
+    public function findRecentPending(int $limit = 5): array
+    {
+        $sql = "SELECT a.*, c.company_name as company_name 
+                FROM approvals a
+                LEFT JOIN companies c ON a.company_id = c.id
+                WHERE a.status = 'pending'
+                ORDER BY a.requested_at DESC
+                LIMIT :limit";
+        
+        $stmt = $this->connection->prepare($sql);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     /**
      * Insert or update an approval.
      *

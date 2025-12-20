@@ -46,17 +46,7 @@ final class MysqlTransactionRepository extends AbstractMysqlRepository implement
                 $this->insertTransaction($data);
             }
 
-            // Replace all lines (delete old, insert new)
-            $this->execute(
-                'DELETE FROM transaction_lines WHERE transaction_id = :transaction_id',
-                ['transaction_id' => $data['id']]
-            );
-
-            $lines = $transaction->lines();
-            foreach ($lines as $index => $line) {
-                $lineData = $this->hydrator->extractLine($line, $data['id'], $index);
-                $this->insertLine($lineData);
-            }
+            $this->syncTransactionLines($transaction, $data['id'], $exists);
 
             $this->commit();
         } catch (\Throwable $e) {
@@ -126,33 +116,13 @@ final class MysqlTransactionRepository extends AbstractMysqlRepository implement
             $params['status'] = $status->value;
         }
 
-        $sql .= ' ORDER BY transaction_date DESC, created_at DESC LIMIT :limit OFFSET :offset';
+        $sql .= ' ORDER BY transaction_date DESC, created_at DESC';
         
-        // PDO needs integers for LIMIT/OFFSET if emulating prepared statements?
-        // Safest is to bind as INT explicitly if possible, or just inject if validated.
-        // AbstractMysqlRepository uses execute(array).
-        // Standard PDO defaults to string params which breaks LIMIT in some versions.
-        // Let's check AbstractMysqlRepository or just cast/bind manually?
-        // Assuming default execute handles it or we concat (less safe but acceptable for int)
-        // Actually, let's try binding.
-        
-        // $this->fetchAll uses execute(). 
-        // If underlying is PDO with emulation, stringified int is fine usually.
-        // But true prepared statements require INT.
-        // Let's assume AbstractMysql binds loosely or we might need to cast.
-        // Safer:
-        $params['limit'] = $limit;
-        $params['offset'] = $offset;
-
-        // Note: fetchAll usually returns string keys.
-        // If underlying pdo driver is strict, we might need explicit bindValue.
-        // I will assume standard behavior is OK for now, but watch out.
-        
-        // Actually, LIMIT :limit often fails if passed as string '20'.
-        // I'll take a safer approach for this specific repo logic if needed, 
-        // but for now standard array params.
-        
-        $rows = $this->fetchAll($sql, $params);
+        $rows = $this->fetchPaged(
+            $sql,
+            $params,
+            new \Domain\Shared\ValueObject\Pagination($limit, $offset)
+        );
 
         return $this->hydrateMultiple($rows);
     }
@@ -363,5 +333,40 @@ final class MysqlTransactionRepository extends AbstractMysqlRepository implement
         SQL;
 
         $this->execute($sql, $lineData);
+    }
+    private function syncTransactionLines(Transaction $transaction, string $transactionId, bool $exists): void
+    {
+        // Replace all lines (delete old, insert new)
+        $this->execute(
+            'DELETE FROM transaction_lines WHERE transaction_id = :transaction_id',
+            ['transaction_id' => $transactionId]
+        );
+
+        foreach ($transaction->lines() as $index => $line) {
+            $lineData = $this->hydrator->extractLine($line, $transactionId, $index);
+            $this->insertLine($lineData);
+        }
+    }
+
+    public function delete(TransactionId $id): void
+    {
+        $this->beginTransaction();
+
+        try {
+            $this->execute(
+                'DELETE FROM transaction_lines WHERE transaction_id = :transaction_id',
+                ['transaction_id' => $id->toString()]
+            );
+
+            $this->execute(
+                'DELETE FROM transactions WHERE id = :id',
+                ['id' => $id->toString()]
+            );
+
+            $this->commit();
+        } catch (\Throwable $e) {
+            $this->rollback();
+            throw $e;
+        }
     }
 }

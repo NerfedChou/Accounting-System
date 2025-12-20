@@ -9,7 +9,9 @@ use Domain\Company\ValueObject\CompanyId;
 use Domain\Identity\Entity\User;
 use Domain\Identity\Repository\UserRepositoryInterface;
 use Domain\Identity\Service\AuthenticationServiceInterface;
+use Domain\Identity\ValueObject\Password;
 use Domain\Identity\ValueObject\Role;
+use Domain\Identity\ValueObject\Username;
 use Domain\Shared\ValueObject\Email;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -59,9 +61,9 @@ final class AuthController
             $role = Role::TENANT;
 
             $user = User::register(
-                $body['username'],
+                Username::fromString($body['username']),
                 $email,
-                $body['password'],
+                Password::fromString($body['password']),
                 $role,
                 $companyId
             );
@@ -89,30 +91,32 @@ final class AuthController
     {
         $body = $request->getParsedBody();
         $identifier = $body['username'] ?? $body['email'] ?? null;
-        $password = $body['password'] ?? null;
+        $passwordString = $body['password'] ?? null;
         
-        if (empty($identifier) || empty($password)) {
+        if (empty($identifier) || empty($passwordString)) {
             return JsonResponse::error('Username/email and password are required', 422);
         }
 
+        // Note: We do NOT validate password complexity here.
+        // Login should verify against the stored hash, not enforce format rules.
+        // Complexity rules are only enforced at registration time.
+
         $user = $this->findUserByIdentifier($identifier);
-        
-        if ($user === null || !$user->verifyPassword($password)) {
+        if ($user === null || !$user->verifyPassword($passwordString)) {
             // Use generic error message for security (prevent enumeration)
             return JsonResponse::error('Invalid credentials', 401);
         }
 
-        if ($user->isOtpEnabled()) {
-            if (empty($body['otp_code'])) {
-                return JsonResponse::error('OTP code is required', 422);
-            }
-
-            if (!$this->verifyOtp($user, $body['otp_code'])) {
-                return JsonResponse::error('Invalid OTP code', 401);
-            }
+        $otpResponse = $this->checkTwoFactorAuthentication($user, $body['otp_code'] ?? null);
+        if ($otpResponse !== null) {
+            return $otpResponse;
         }
 
-        // Generate session/JWT
+        return $this->createSessionFromUser($user, $passwordString, $request);
+    }
+
+    private function createSessionFromUser(User $user, string $password, ServerRequestInterface $request): ResponseInterface
+    {
         try {
             $session = $this->authService->authenticate(
                 $user->username(),
@@ -129,6 +133,23 @@ final class AuthController
         } catch (\Throwable $e) {
             return JsonResponse::error('Authentication failed', 401);
         }
+    }
+
+    private function checkTwoFactorAuthentication(User $user, ?string $otpCode): ?ResponseInterface
+    {
+        if (!$user->isOtpEnabled()) {
+            return null;
+        }
+
+        if (empty($otpCode)) {
+            return JsonResponse::error('OTP code is required', 422);
+        }
+
+        if (!$this->verifyOtp($user, $otpCode)) {
+            return JsonResponse::error('Invalid OTP code', 401);
+        }
+
+        return null;
     }
 
     private function findUserByIdentifier(string $identifier): ?User

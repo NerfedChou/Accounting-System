@@ -12,6 +12,7 @@ class TransactionsManager {
         this.companies = [];
         this.selectedCompanyId = null;
         this.lineCounter = 0;
+        this.editingTransactionId = null;
 
         this.elements = {
             userName: document.getElementById('userName'),
@@ -84,20 +85,31 @@ class TransactionsManager {
     async loadCompanies() {
         try {
             const result = await api.getCompanies();
-            const companies = result?.data || [];
-
-            this.companies = companies;
+            this.companies = result?.data || [];
             this.renderCompanySelector();
 
-            // Auto-select first company if available
-            if (this.companies.length > 0) {
-                this.selectedCompanyId = this.companies[0].id;
+            // 1. Identify Target Company (URL > localStorage > default)
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlCompanyId = urlParams.get('company');
+            const storedId = localStorage.getItem('company_id');
+
+            let targetId = null;
+            if (urlCompanyId && this.companies.some(c => c.id === urlCompanyId)) {
+                targetId = urlCompanyId;
+                localStorage.setItem('company_id', targetId); // Sync selection
+            } else if (storedId && this.companies.some(c => c.id === storedId)) {
+                targetId = storedId;
+            } else if (this.companies.length > 0) {
+                targetId = this.companies[0].id;
+                localStorage.setItem('company_id', targetId);
+            }
+
+            this.selectedCompanyId = targetId;
+
+            if (this.selectedCompanyId) {
                 this.elements.filterCompany.value = this.selectedCompanyId;
-                // Store company ID for other pages
-                localStorage.setItem('company_id', this.selectedCompanyId);
-                await this.loadAccounts();
-                // Check URL params BEFORE loading transactions (sets filter)
-                this.checkUrlAction();
+                await this.loadAccounts(); // Load accounts for the correct company
+                this.checkUrlAction();     // Handle other URL params (status, txn)
                 this.loadTransactions();
             } else {
                 this.showNoCompanyState();
@@ -121,13 +133,16 @@ class TransactionsManager {
 
     showNoCompanyState() {
         this.elements.transactionsBody.innerHTML = '';
-        this.elements.emptyState.style.display = 'block';
-        this.elements.emptyState.innerHTML = `
-            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="48" height="48" fill="currentColor"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v4c0 .372-.116.717-.314 1 .198.283.314.628.314 1v4a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 12.75v-4c0-.372.116-.717.314-1a1.739 1.739 0 0 1-.314-1v-4C0 1.784.784 1 1.75 1Z"></path></svg>
-            <h3>No Company Selected</h3>
-            <p>Please create a company first to manage transactions.</p>
-        `;
         document.querySelector('.panel').style.display = 'none';
+        this.elements.emptyState.innerHTML = `
+            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="64" height="64" fill="currentColor">
+                <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v4c0 .372-.116.717-.314 1 .198.283.314.628.314 1v4a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 12.75v-4c0-.372.116-.717.314-1a1.739 1.739 0 0 1-.314-1v-4C0 1.784.784 1 1.75 1ZM1.5 2.75v4c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-4a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25Zm.25 5.75a.25.25 0 0 0-.25.25v4c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-4a.25.25 0 0 0-.25-.25Z"></path>
+            </svg>
+            <h3>NO COMPANY SELECTED</h3>
+            <p>Please create a company first to manage transactions.</p>
+            <a href="/dashboard.html" class="btn btn-primary">Go to Dashboard</a>
+        `;
+        this.elements.emptyState.style.display = 'flex';
         this.elements.btnNewTransaction.disabled = true;
     }
 
@@ -157,6 +172,7 @@ class TransactionsManager {
         // Company selector change
         this.elements.filterCompany?.addEventListener('change', async () => {
             this.selectedCompanyId = this.elements.filterCompany.value;
+            localStorage.setItem('company_id', this.selectedCompanyId);
             this.currentPage = 1;
             await this.loadAccounts();
             this.loadTransactions();
@@ -195,36 +211,24 @@ class TransactionsManager {
         const urlParams = new URLSearchParams(window.location.search);
         const action = urlParams.get('action');
         const status = urlParams.get('status');
-        const company = urlParams.get('company');
         const txnId = urlParams.get('txn');
 
-        // Validate and sanitize URL parameters to prevent XSS
+        // Validation constants
         const validStatuses = ['all', 'draft', 'pending', 'approved', 'posted', 'rejected', 'voided'];
-        const isValidCompany = company && /^\d+$/.test(company); // Only numeric IDs
-        const isValidStatus = status && validStatuses.includes(status);
-        const isValidTxnId = txnId && /^[A-Za-z0-9\-]+$/.test(txnId); // Alphanumeric + hyphens only
-        const isValidAction = action && /^[a-z]+$/.test(action); // Lowercase letters only
 
-        // Set company filter from URL (only if valid)
-        if (isValidCompany && this.elements.filterCompany) {
-            this.elements.filterCompany.value = company;
-            this.selectedCompanyId = company;
-        }
-
-        // Set status filter from URL (only if valid)
-        if (isValidStatus && this.elements.filterStatus) {
+        // Status filter
+        if (status && validStatuses.includes(status) && this.elements.filterStatus) {
             this.elements.filterStatus.value = status;
         }
 
-        // Store txnId to open modal after transactions load (only if valid)
-        if (isValidTxnId) {
+        // Transaction ID to auto-open
+        if (txnId && /^[A-Za-z0-9\-]+$/.test(txnId)) {
             this.pendingTxnToOpen = txnId;
         }
 
-        if (isValidAction && action === 'new' && this.selectedCompanyId) {
-            // Small delay to let accounts load
+        // Action triggers
+        if (action === 'new' && this.selectedCompanyId) {
             setTimeout(() => this.openNewTransactionModal(), 300);
-            // Clean up URL
             window.history.replaceState({}, '', '/transactions.html');
         }
     }
@@ -334,6 +338,7 @@ class TransactionsManager {
         const status = txn.status || 'draft';
         const safeId = this.escapeHtml(txn.id || '');
         const safeStatus = this.escapeHtml(status);
+        const statusClass = this.getStatusClass(status);
 
         return `
             <tr class="clickable-row" data-id="${safeId}">
@@ -341,12 +346,90 @@ class TransactionsManager {
                 <td>${this.escapeHtml(date)}</td>
                 <td>${this.escapeHtml(txn.description || 'No description')}</td>
                 <td style="font-family: var(--font-mono);">${this.escapeHtml(amount)}</td>
-                <td><span class="status-badge ${safeStatus}">${safeStatus}</span></td>
+                <td><span class="status-badge ${statusClass}">${safeStatus}</span></td>
                 <td>
-                    <!-- Actions performed will appear here -->
+                    <div class="action-btns">
+                        ${this.renderRowActions(txn)}
+                    </div>
                 </td>
             </tr>
         `;
+    }
+
+    renderRowActions(txn) {
+        const id = this.escapeHtml(txn.id);
+        const status = (txn.status || 'draft').toLowerCase();
+
+        let actions = `
+            <button class="btn-icon view" title="View Details" onclick="event.stopPropagation(); transactionsManager.viewTransaction('${id}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </button>
+        `;
+
+        if (status === 'draft') {
+            actions += `
+                <button class="btn-icon edit" title="Edit" onclick="event.stopPropagation(); transactionsManager.editTransaction('${id}')" style="color: var(--primary-color); border-color: var(--primary-color);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
+                <button class="btn-icon post" title="Post" onclick="event.stopPropagation(); transactionsManager.postTransaction('${id}')" style="color: var(--success-color); border-color: var(--success-color);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </button>
+                <button class="btn-icon void" title="Delete" onclick="event.stopPropagation(); transactionsManager.deleteTransaction('${id}')" style="color: var(--danger-color); border-color: var(--danger-color);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                </button>
+            `;
+        }
+
+        if (status === 'pending') {
+            actions += `
+                <button class="btn-icon view" title="Reject" onclick="event.stopPropagation(); transactionsManager.rejectTransaction('${id}')" style="color: var(--danger-color); border-color: var(--danger-color);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <button class="btn-icon post" title="Approve" onclick="event.stopPropagation(); transactionsManager.approveTransaction('${id}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </button>
+            `;
+        } else if (status === 'approved') {
+            actions += `
+                <button class="btn-icon post" title="Post" onclick="event.stopPropagation(); transactionsManager.postTransaction('${id}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                    </svg>
+                </button>
+            `;
+        } else if (status === 'posted') {
+            actions += `
+                <button class="btn-icon void" title="Void" onclick="event.stopPropagation(); transactionsManager.voidTransaction('${id}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                    </svg>
+                </button>
+            `;
+        }
+
+        return actions;
     }
 
     calculateTotal(lines) {
@@ -376,25 +459,91 @@ class TransactionsManager {
     // ========== New Transaction Modal ==========
 
     openNewTransactionModal() {
+        this.editingTransactionId = null;
         this.elements.transactionForm.reset();
         this.setDefaultDate();
         this.elements.linesContainer.innerHTML = '';
         this.lineCounter = 0;
 
-        // Add two initial lines
-        this.addLine();
-        this.addLine();
+        // Update modal title and button text for create mode
+        const modalTitle = this.elements.transactionModal.querySelector('.modal-header h2');
+        if (modalTitle) modalTitle.textContent = 'New Transaction';
+        this.elements.btnSubmitTransaction.textContent = 'Create Transaction';
+
+        // Add two initial lines: first as Credit, second as Debit
+        this.addLine('credit');
+        this.addLine('debit');
 
         this.updateBalanceCheck();
         this.elements.transactionModal.classList.add('active');
+    }
+
+    async editTransaction(id) {
+        try {
+            const result = await api.getTransaction(id, this.selectedCompanyId);
+            const txn = result?.data;
+
+            if (!txn) throw new Error('Transaction not found');
+
+            if (txn.status !== 'draft') {
+                alert('Only draft transactions can be edited');
+                return;
+            }
+
+            this.editingTransactionId = id;
+            this.elements.transactionForm.reset();
+            this.elements.linesContainer.innerHTML = '';
+            this.lineCounter = 0;
+
+            // Update modal title and button text for edit mode
+            const modalTitle = this.elements.transactionModal.querySelector('.modal-header h2');
+            if (modalTitle) modalTitle.textContent = 'Edit Transaction';
+            this.elements.btnSubmitTransaction.textContent = 'Update Transaction';
+
+            // Populate form fields
+            this.elements.txnDate.value = txn.date || '';
+            document.getElementById('txnDescription').value = txn.description || '';
+            document.getElementById('txnReference').value = txn.reference_number || '';
+
+            // Populate lines
+            if (txn.lines && txn.lines.length > 0) {
+                for (const line of txn.lines) {
+                    this.addLine();
+                    const lineRow = this.elements.linesContainer.querySelector(`[data-line="${this.lineCounter}"]`);
+                    if (lineRow) {
+                        lineRow.querySelector('.line-account').value = line.account_id;
+                        const type = line.debit > 0 ? 'debit' : 'credit';
+                        lineRow.querySelector('.line-type').value = type;
+
+                        // Update toggle UI
+                        const toggle = lineRow.querySelector('.type-toggle');
+                        toggle.querySelectorAll('.toggle-option').forEach(opt => {
+                            opt.classList.toggle('active', opt.dataset.value === type);
+                        });
+
+                        lineRow.querySelector('.line-amount').value = line.debit > 0 ? line.debit : line.credit;
+                    }
+                }
+            } else {
+                // Add two empty lines as fallback
+                this.addLine();
+                this.addLine();
+            }
+
+            this.updateBalanceCheck();
+            this.elements.transactionModal.classList.add('active');
+        } catch (error) {
+            alert(`Failed to load transaction: ${error.message}`);
+        }
     }
 
     closeModal() {
         this.elements.transactionModal.classList.remove('active');
     }
 
-    addLine() {
+    addLine(defaultType = 'debit') {
         this.lineCounter++;
+        const isCredit = defaultType === 'credit';
         const lineHtml = `
             <div class="line-row" data-line="${this.lineCounter}">
                 <select name="account_${this.lineCounter}" class="form-select line-account" required>
@@ -403,11 +552,18 @@ class TransactionsManager {
                         <option value="${acc.id}">${this.escapeHtml(acc.code)} - ${this.escapeHtml(acc.name)}</option>
                     `).join('')}
                 </select>
-                <input type="number" name="debit_${this.lineCounter}" class="form-input line-debit" 
-                       placeholder="Debit" step="0.01" min="0">
-                <input type="number" name="credit_${this.lineCounter}" class="form-input line-credit" 
-                       placeholder="Credit" step="0.01" min="0">
-                <button type="button" class="btn-remove-line" data-line="${this.lineCounter}">x</button>
+                
+                <div class="type-toggle-wrapper">
+                    <input type="hidden" name="type_${this.lineCounter}" class="line-type" value="${defaultType}">
+                    <div class="type-toggle">
+                        <div class="toggle-option ${!isCredit ? 'active' : ''}" data-value="debit">Debit</div>
+                        <div class="toggle-option ${isCredit ? 'active' : ''}" data-value="credit">Credit</div>
+                    </div>
+                </div>
+
+                <input type="number" name="amount_${this.lineCounter}" class="form-input line-amount" 
+                       placeholder="0.00" step="0.01" min="0" required>
+                <button type="button" class="btn-remove-line" data-line="${this.lineCounter}">×</button>
             </div>
         `;
 
@@ -415,8 +571,27 @@ class TransactionsManager {
 
         // Bind events for new line
         const lineRow = this.elements.linesContainer.querySelector(`[data-line="${this.lineCounter}"]`);
-        lineRow.querySelector('.line-debit').addEventListener('input', () => this.updateBalanceCheck());
-        lineRow.querySelector('.line-credit').addEventListener('input', () => this.updateBalanceCheck());
+
+        // Handle Toggle Click
+        const toggle = lineRow.querySelector('.type-toggle');
+        const typeInput = lineRow.querySelector('.line-type');
+
+        toggle.addEventListener('click', (e) => {
+            const option = e.target.closest('.toggle-option');
+            if (option) {
+                const newValue = option.dataset.value;
+                typeInput.value = newValue;
+
+                // Update UI
+                toggle.querySelectorAll('.toggle-option').forEach(opt => {
+                    opt.classList.toggle('active', opt === option);
+                });
+
+                this.updateBalanceCheck();
+            }
+        });
+
+        lineRow.querySelector('.line-amount').addEventListener('input', () => this.updateBalanceCheck());
         lineRow.querySelector('.btn-remove-line').addEventListener('click', (e) => {
             lineRow.remove();
             this.updateBalanceCheck();
@@ -428,10 +603,14 @@ class TransactionsManager {
         let totalCredits = 0;
 
         this.elements.linesContainer.querySelectorAll('.line-row').forEach(row => {
-            const debit = parseFloat(row.querySelector('.line-debit').value) || 0;
-            const credit = parseFloat(row.querySelector('.line-credit').value) || 0;
-            totalDebits += debit;
-            totalCredits += credit;
+            const lineType = row.querySelector('.line-type').value;
+            const amount = parseFloat(row.querySelector('.line-amount').value) || 0;
+
+            if (lineType === 'debit') {
+                totalDebits += amount;
+            } else {
+                totalCredits += amount;
+            }
         });
 
         this.elements.totalDebits.textContent = totalDebits.toFixed(2);
@@ -455,22 +634,31 @@ class TransactionsManager {
         const data = {
             date: this.elements.txnDate.value,
             description: document.getElementById('txnDescription').value,
-            reference: document.getElementById('txnReference').value || null,
+            reference_number: document.getElementById('txnReference').value || null,
             lines: lines
         };
 
+        const isEditing = !!this.editingTransactionId;
+        const actionText = isEditing ? 'Updating...' : 'Creating...';
+        const successText = isEditing ? 'Update Transaction' : 'Create Transaction';
+
         this.elements.btnSubmitTransaction.disabled = true;
-        this.elements.btnSubmitTransaction.textContent = 'Creating...';
+        this.elements.btnSubmitTransaction.textContent = actionText;
 
         try {
-            await api.createTransaction(data, this.selectedCompanyId);
+            if (isEditing) {
+                await api.updateTransaction(this.editingTransactionId, data, this.selectedCompanyId);
+            } else {
+                await api.createTransaction(data, this.selectedCompanyId);
+            }
             this.closeModal();
             this.loadTransactions();
         } catch (error) {
-            alert(`Failed to create transaction: ${error.message}`);
+            const action = isEditing ? 'update' : 'create';
+            alert(`Failed to ${action} transaction: ${error.message}`);
         } finally {
             this.elements.btnSubmitTransaction.disabled = false;
-            this.elements.btnSubmitTransaction.textContent = 'Create Transaction';
+            this.elements.btnSubmitTransaction.textContent = successText;
         }
     }
 
@@ -478,14 +666,17 @@ class TransactionsManager {
         const lines = [];
         this.elements.linesContainer.querySelectorAll('.line-row').forEach(row => {
             const accountId = row.querySelector('.line-account').value;
-            const debit = parseFloat(row.querySelector('.line-debit').value) || 0;
-            const credit = parseFloat(row.querySelector('.line-credit').value) || 0;
+            const lineType = row.querySelector('.line-type').value; // 'debit' or 'credit' (lowercase)
+            const amount = parseFloat(row.querySelector('.line-amount').value) || 0;
 
-            if (accountId && (debit > 0 || credit > 0)) {
+            if (accountId && amount > 0) {
+                // Backend expects: account_id, line_type (lowercase), amount_cents
+                const amountCents = Math.round(amount * 100);
+
                 lines.push({
                     account_id: accountId,
-                    debit: debit,
-                    credit: credit
+                    line_type: lineType,
+                    amount_cents: amountCents
                 });
             }
         });
@@ -535,7 +726,7 @@ class TransactionsManager {
                     </div>
                     <div class="detail-item">
                         <label>Status</label>
-                        <span><span class="status-badge ${safeStatus}">${safeStatus}</span></span>
+                        <span><span class="status-badge ${this.getStatusClass(status)}">${safeStatus}</span></span>
                     </div>
                     <div class="detail-item">
                         <label>Amount</label>
@@ -583,7 +774,7 @@ class TransactionsManager {
                     <tbody>
                         ${(txn.lines || []).map(line => `
                             <tr>
-                                <td>${this.escapeHtml(line.account_name || line.account_id)}</td>
+                                <td>${this.escapeHtml(this.getAccountDisplayName(line.account_id))}</td>
                                 <td class="amount debit">${line.debit > 0 ? this.escapeHtml(this.formatCurrency(line.debit)) : ''}</td>
                                 <td class="amount credit">${line.credit > 0 ? this.escapeHtml(this.formatCurrency(line.credit)) : ''}</td>
                             </tr>
@@ -597,6 +788,14 @@ class TransactionsManager {
                 </table>
             </div>
         `;
+    }
+
+    getAccountDisplayName(accountId) {
+        const account = this.accounts.find(a => a.id === accountId);
+        if (account) {
+            return `${account.code} - ${account.name}`;
+        }
+        return accountId; // Fallback to ID if not found
     }
 
     renderReviewSection(status) {
@@ -615,6 +814,14 @@ class TransactionsManager {
     renderDetailActions(txnId, status) {
         const safeId = this.escapeHtml(txnId);
 
+        if (status === 'draft') {
+            return `
+                <button class="btn btn-secondary" onclick="transactionsManager.closeDetailModal()">Close</button>
+                <button class="btn btn-danger" onclick="transactionsManager.deleteTransaction('${safeId}')">Delete</button>
+                <button class="btn btn-primary" onclick="transactionsManager.editTransaction('${safeId}')">Edit</button>
+                <button class="btn btn-success" onclick="transactionsManager.postTransaction('${safeId}')">Post Transaction</button>
+            `;
+        }
         if (status === 'pending') {
             return `
                 <button class="btn btn-secondary" onclick="transactionsManager.closeDetailModal()">Close</button>
@@ -643,6 +850,20 @@ class TransactionsManager {
 
     // ========== Transaction Actions ==========
 
+    async deleteTransaction(id) {
+        if (!confirm('Are you sure you want to delete this draft transaction?')) {
+            return;
+        }
+
+        try {
+            await api.deleteTransaction(id, this.selectedCompanyId);
+            this.closeDetailModal();
+            this.loadTransactions();
+        } catch (error) {
+            alert(`Failed to delete transaction: ${error.message}`);
+        }
+    }
+
     rejectTransaction(id) {
         this.showConfirmModal({
             title: 'Reject Transaction',
@@ -651,12 +872,24 @@ class TransactionsManager {
             inputRequired: true,
             buttonText: 'Reject',
             buttonClass: 'btn-danger',
-            onConfirm: (reason) => {
-                // Mock rejection
-                console.log(`Transaction ${id} rejected with reason: ${reason}`);
-                this.closeConfirmModal();
-                this.closeDetailModal();
-                this.loadMockTransactions();
+            onConfirm: async (reason) => {
+                try {
+                    // Find approval ID for this transaction
+                    const approvals = await api.getPendingApprovals(1, 100, this.selectedCompanyId);
+                    const approval = approvals?.data?.find(a => a.entity_id === id);
+
+                    if (approval) {
+                        await api.rejectRequest(approval.id, reason, this.selectedCompanyId);
+                    } else {
+                        throw new Error('Associated approval request not found');
+                    }
+
+                    this.closeConfirmModal();
+                    this.closeDetailModal();
+                    this.loadTransactions();
+                } catch (error) {
+                    alert(`Failed to reject transaction: ${error.message}`);
+                }
             }
         });
     }
@@ -669,12 +902,24 @@ class TransactionsManager {
             inputRequired: false,
             buttonText: 'Approve',
             buttonClass: 'btn-success',
-            onConfirm: (reason) => {
-                // Mock approval
-                console.log(`Transaction ${id} approved with reason: ${reason || 'No reason provided'}`);
-                this.closeConfirmModal();
-                this.closeDetailModal();
-                this.loadMockTransactions();
+            onConfirm: async (reason) => {
+                try {
+                    // Find approval ID for this transaction
+                    const approvals = await api.getPendingApprovals(1, 100, this.selectedCompanyId);
+                    const approval = approvals?.data?.find(a => a.entity_id === id);
+
+                    if (approval) {
+                        await api.approveRequest(approval.id, reason, this.selectedCompanyId);
+                    } else {
+                        throw new Error('Associated approval request not found');
+                    }
+
+                    this.closeConfirmModal();
+                    this.closeDetailModal();
+                    this.loadTransactions();
+                } catch (error) {
+                    alert(`Failed to approve transaction: ${error.message}`);
+                }
             }
         });
     }
@@ -701,9 +946,12 @@ class TransactionsManager {
                 const impactType = line.debit > 0 ? 'increase' : 'decrease';
                 const impactLabel = line.debit > 0 ? 'DEBIT' : 'CREDIT';
                 const amount = line.debit > 0 ? line.debit : line.credit;
+                // Use account_id to resolve name if account_name is a UUID or missing
+                const accountName = this.getAccountDisplayName(line.account_id || line.account_name);
+
                 accountsHtml += `
                     <div class="impact-account">
-                        <span class="account-name">${this.escapeHtml(line.account_name)}</span>
+                        <span class="account-name">${this.escapeHtml(accountName)}</span>
                         <span class="impact-type ${impactType}">${impactLabel}</span>
                         <span style="font-family: monospace; color: #fff;">${this.escapeHtml(this.formatCurrency(amount))}</span>
                     </div>
@@ -777,6 +1025,18 @@ class TransactionsManager {
     }
 
     // ========== Utilities ==========
+
+    getStatusClass(status) {
+        const map = {
+            'draft': 'draft',
+            'pending': 'pending',
+            'approved': 'approved',
+            'posted': 'posted',
+            'rejected': 'voided', // Map rejected to voided style for now
+            'voided': 'voided'
+        };
+        return map[status.toLowerCase()] || 'draft';
+    }
 
     escapeHtml(text) {
         if (!text) return '';

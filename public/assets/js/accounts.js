@@ -124,27 +124,71 @@ class AccountsManager {
 
             if (companies.length === 0) {
                 this.elements.filterCompany.innerHTML = '<option value="">No companies available</option>';
+                // Show empty state with prompt to create company
+                this.showNoCompanyState();
                 return;
             }
 
-            companies.forEach((company, index) => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlCompanyId = urlParams.get('company');
+            const storedId = localStorage.getItem('company_id');
+            let targetId = null;
+
+            // Priority: URL > localStorage > first company
+            if (urlCompanyId && companies.some(c => c.id === urlCompanyId)) {
+                targetId = urlCompanyId;
+                localStorage.setItem('company_id', targetId);
+            } else if (storedId && companies.some(c => c.id === storedId)) {
+                targetId = storedId;
+            } else if (companies.length > 0) {
+                targetId = companies[0].id;
+                localStorage.setItem('company_id', targetId);
+            }
+
+            companies.forEach((company) => {
                 const option = document.createElement('option');
                 option.value = company.id;
                 option.textContent = company.name;
-                if (index === 0) option.selected = true;
+                if (company.id === targetId) {
+                    option.selected = true;
+                }
                 this.elements.filterCompany.appendChild(option);
             });
 
-            this.selectedCompanyId = companies[0]?.id;
-            await this.loadAccounts();
+            this.selectedCompanyId = targetId;
+            if (this.selectedCompanyId) {
+                await this.loadAccounts();
+            } else {
+                this.showNoCompanyState();
+            }
         } catch (error) {
             console.error('Failed to load companies:', error);
             this.elements.filterCompany.innerHTML = '<option value="">Error loading companies</option>';
+            this.showNoCompanyState();
         }
+    }
+
+    showNoCompanyState() {
+        // Hide table, show empty state with company-specific message
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) tableContainer.style.display = 'none';
+        document.getElementById('paginationContainer')?.remove();
+
+        this.elements.emptyState.innerHTML = `
+            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="64" height="64" fill="currentColor">
+                <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v4c0 .372-.116.717-.314 1 .198.283.314.628.314 1v4a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 12.75v-4c0-.372.116-.717.314-1a1.739 1.739 0 0 1-.314-1v-4C0 1.784.784 1 1.75 1ZM1.5 2.75v4c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-4a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25Zm.25 5.75a.25.25 0 0 0-.25.25v4c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-4a.25.25 0 0 0-.25-.25Z"></path>
+            </svg>
+            <h3>NO COMPANY SELECTED</h3>
+            <p>Please create a company first to manage your chart of accounts.</p>
+            <a href="/dashboard.html" class="btn btn-primary">Go to Dashboard</a>
+        `;
+        this.elements.emptyState.style.display = 'flex';
+        this.updateAccountCount(0);
     }
 
     onCompanyChange() {
         this.selectedCompanyId = this.elements.filterCompany.value;
+        localStorage.setItem('company_id', this.selectedCompanyId);
         this.loadAccounts();
     }
 
@@ -203,13 +247,30 @@ class AccountsManager {
     }
 
     renderAccounts(accounts) {
+        const tableContainer = document.querySelector('.table-container');
+
         if (this.filteredAccounts.length === 0) {
             this.elements.accountsBody.innerHTML = '';
-            this.elements.emptyState.style.display = 'flex';
+            if (tableContainer) tableContainer.style.display = 'none';
             document.getElementById('paginationContainer')?.remove();
+
+            // Reset empty state to default accounts message
+            this.elements.emptyState.innerHTML = `
+                <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="48" height="48" fill="currentColor">
+                    <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25ZM6.5 6.5v8h7.75a.25.25 0 0 0 .25-.25V6.5Zm8-1.5V1.75a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25V5Z"></path>
+                </svg>
+                <h3>No Accounts Found</h3>
+                <p>Create your first account to get started with your chart of accounts.</p>
+                <button class="btn btn-primary" id="btnCreateFirst">Create Account</button>
+            `;
+            this.elements.emptyState.style.display = 'flex';
+
+            // Re-bind the create button
+            document.getElementById('btnCreateFirst')?.addEventListener('click', () => this.openCreateModal());
             return;
         }
 
+        if (tableContainer) tableContainer.style.display = 'block';
         this.elements.emptyState.style.display = 'none';
         this.elements.accountsBody.innerHTML = accounts.map(account => this.renderAccountRow(account)).join('');
 

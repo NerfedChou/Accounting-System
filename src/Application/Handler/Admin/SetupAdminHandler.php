@@ -7,7 +7,9 @@ namespace Application\Handler\Admin;
 use Application\Command\Admin\SetupAdminCommand;
 use Domain\Identity\Entity\User;
 use Domain\Identity\Repository\UserRepositoryInterface;
+use Domain\Identity\ValueObject\Password;
 use Domain\Identity\ValueObject\Role;
+use Domain\Identity\ValueObject\Username;
 use Domain\Shared\ValueObject\Email;
 use Infrastructure\Service\TotpService;
 use InvalidArgumentException;
@@ -34,9 +36,9 @@ final class SetupAdminHandler
 
         // 3. Create Admin User
         $user = User::register(
-            username: $command->username,
+            username: Username::fromString($command->username),
             email: Email::fromString($command->email),
-            password: $command->password,
+            password: Password::fromString($command->password),
             role: Role::ADMIN,
             companyId: null
         );

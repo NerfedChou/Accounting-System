@@ -47,18 +47,14 @@ final class ErrorHandlerMiddleware
             'code' => $statusCode,
         ];
 
-        // Add debug info in development
-        if ($this->debug) {
-            $payload['debug'] = [
-                'exception' => get_class($e),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => array_slice($e->getTrace(), 0, 10),
-            ];
-        } else {
-            // Snyk/CWE-200: Ensure no sensitive info leaks in production
-            // The mapping logic ensures 500 errors are masked.
-        }
+        // Log exception details to server log
+        error_log(sprintf(
+            "Exception: %s in %s:%d\nStack trace: %s",
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine(),
+            $e->getTraceAsString()
+        ));
 
         // Add request ID if present
         $requestId = $request->getAttribute('request_id');
@@ -66,7 +62,9 @@ final class ErrorHandlerMiddleware
             $payload['request_id'] = $requestId;
         }
 
-        return new JsonResponse($payload, $statusCode);
+        return (new JsonResponse($payload, $statusCode))
+            ->withHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->withHeader('Pragma', 'no-cache');
     }
 
     /**
@@ -94,11 +92,6 @@ final class ErrorHandlerMiddleware
      */
     private function getErrorMessage(Throwable $e): string
     {
-        // Debug mode: Always show full message
-        if ($this->debug) {
-            return $e->getMessage();
-        }
-
         $statusCode = $this->mapExceptionToStatusCode($e);
 
         // Production: Mask execution/internal errors (5xx)
@@ -106,12 +99,15 @@ final class ErrorHandlerMiddleware
             return 'An internal error occurred. Please try again later.';
         }
 
-        // Production: Allow client errors (4xx) but sanitize to prevent injection/leakage
-        // SECURITY AUDIT [2024-12-19]: This is intentional behavior.
-        // - 5xx errors are fully masked (line 106)
-        // - 4xx errors show sanitized messages for client feedback
-        // - Snyk CWE-200 finding acknowledged as acceptable risk for client error messages
-        // AUDIT STATUS: REVIEWED & ACCEPTED
-        return strip_tags($e->getMessage());
+        // Use generic messages for mapped 4xx errors
+        return match ($statusCode) {
+            400 => 'Bad Request',
+            401 => 'Unauthorized',
+            403 => 'Forbidden',
+            404 => 'Not Found',
+            409 => 'Conflict',
+            422 => 'Unprocessable Entity',
+            default => 'An error occurred',
+        };
     }
 }

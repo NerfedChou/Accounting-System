@@ -7,9 +7,11 @@ namespace Domain\Identity\Entity;
 use DateTimeImmutable;
 use Domain\Company\ValueObject\CompanyId;
 use Domain\Identity\Event\UserRegistered;
+use Domain\Identity\ValueObject\Password;
 use Domain\Identity\ValueObject\RegistrationStatus;
 use Domain\Identity\ValueObject\Role;
 use Domain\Identity\ValueObject\UserId;
+use Domain\Identity\ValueObject\Username;
 use Domain\Shared\Event\DomainEvent;
 use Domain\Shared\Exception\AuthenticationException;
 use Domain\Shared\Exception\BusinessRuleException;
@@ -39,14 +41,14 @@ final class User
     }
 
     public static function register(
-        string $username,
+        Username $username,
         Email $email,
-        string $password,
+        Password $password,
         Role $role,
         ?CompanyId $companyId = null
     ): self {
-        // BR-IAM-003: Password validation
-        self::validatePassword($password);
+        // BR-IAM-003: Password validation moved to Password Value Object
+
 
         // BR-IAM-006: Admins have no company
         if ($role === Role::ADMIN && $companyId !== null) {
@@ -63,9 +65,10 @@ final class User
         $user = new self(
             userId: UserId::generate(),
             companyId: $companyId,
-            username: $username,
+
+            username: $username->toString(),
             email: $email,
-            passwordHash: password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]),
+            passwordHash: password_hash($password->toString(), PASSWORD_BCRYPT, ['cost' => 12]),
             role: $role,
             registrationStatus: RegistrationStatus::PENDING, // BR-IAM-005
             isActive: true,
@@ -166,25 +169,7 @@ final class User
         $this->updatedAt = new DateTimeImmutable();
     }
 
-    private static function validatePassword(string $password): void
-    {
-        // BR-IAM-003: Password requirements
-        if (strlen($password) < 8) {
-            throw new InvalidArgumentException('Password must be at least 8 characters');
-        }
 
-        if (!preg_match('/[A-Z]/', $password)) {
-            throw new InvalidArgumentException('Password must contain uppercase letter');
-        }
-
-        if (!preg_match('/[a-z]/', $password)) {
-            throw new InvalidArgumentException('Password must contain lowercase letter');
-        }
-
-        if (!preg_match('/[0-9]/', $password)) {
-            throw new InvalidArgumentException('Password must contain digit');
-        }
-    }
 
     private function recordEvent(DomainEvent $event): void
     {

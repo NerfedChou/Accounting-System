@@ -31,15 +31,9 @@ final class AccountController
      */
     public function list(ServerRequestInterface $request): ResponseInterface
     {
-        $companyId = $request->getAttribute('companyId');
-        if ($companyId === null) {
-            return JsonResponse::error('Company ID required', 400);
-        }
-
         try {
-            $accounts = $this->accountRepository->findByCompany(
-                CompanyId::fromString($companyId)
-            );
+            $companyId = $this->getCompanyId($request);
+            $accounts = $this->accountRepository->findByCompany($companyId);
 
             $data = array_map(fn(Account $a) => $this->formatAccount($a), $accounts);
 
@@ -54,19 +48,8 @@ final class AccountController
      */
     public function get(ServerRequestInterface $request): ResponseInterface
     {
-        $id = $request->getAttribute('id');
-        if ($id === null) {
-            return JsonResponse::error('Account ID required', 400);
-        }
-
         try {
-            $account = $this->accountRepository->findById(
-                AccountId::fromString($id)
-            );
-
-            if ($account === null) {
-                return JsonResponse::error('Account not found', 404);
-            }
+            $account = $this->getAccount($request);
 
             return JsonResponse::success($this->formatAccount($account));
         } catch (\Throwable $e) {
@@ -79,9 +62,10 @@ final class AccountController
      */
     public function create(ServerRequestInterface $request): ResponseInterface
     {
-        $companyId = $request->getAttribute('companyId');
-        if ($companyId === null) {
-            return JsonResponse::error('Company ID required', 400);
+        try {
+            $companyId = $this->getCompanyId($request);
+        } catch (\Throwable $e) {
+             return JsonResponse::error($e->getMessage(), 400);
         }
 
         $body = $request->getParsedBody();
@@ -98,7 +82,7 @@ final class AccountController
             $account = Account::create(
                 AccountCode::fromInt((int) $body['code']),
                 $body['name'],
-                CompanyId::fromString($companyId),
+                $companyId,
                 $body['description'] ?? null,
                 isset($body['parent_id']) ? AccountId::fromString($body['parent_id']) : null
             );
@@ -116,21 +100,8 @@ final class AccountController
      */
     public function update(ServerRequestInterface $request): ResponseInterface
     {
-        $id = $request->getAttribute('id');
-        if ($id === null) {
-            return JsonResponse::error('Account ID required', 400);
-        }
-
-        $body = $request->getParsedBody();
-
         try {
-            $account = $this->accountRepository->findById(
-                AccountId::fromString($id)
-            );
-
-            if ($account === null) {
-                return JsonResponse::error('Account not found', 404);
-            }
+            $account = $this->getAccount($request);
 
             // Update name if provided
             if (isset($body['name']) && !empty($body['name'])) {
@@ -155,19 +126,8 @@ final class AccountController
      */
     public function toggle(ServerRequestInterface $request): ResponseInterface
     {
-        $id = $request->getAttribute('id');
-        if ($id === null) {
-            return JsonResponse::error('Account ID required', 400);
-        }
-
         try {
-            $account = $this->accountRepository->findById(
-                AccountId::fromString($id)
-            );
-
-            if ($account === null) {
-                return JsonResponse::error('Account not found', 404);
-            }
+            $account = $this->getAccount($request);
 
             // Toggle active status
             if ($account->isActive()) {
@@ -190,24 +150,13 @@ final class AccountController
      */
     public function transactions(ServerRequestInterface $request): ResponseInterface
     {
-        $id = $request->getAttribute('id');
-        if ($id === null) {
-            return JsonResponse::error('Account ID required', 400);
-        }
-
         try {
             // Verify account exists
-            $account = $this->accountRepository->findById(
-                AccountId::fromString($id)
-            );
-
-            if ($account === null) {
-                return JsonResponse::error('Account not found', 404);
-            }
+            $account = $this->getAccount($request);
 
             // Fetch transactions involving this account (limit to recent 20)
             $transactions = $this->transactionRepository->findByAccount(
-                AccountId::fromString($id)
+                $account->id()
             );
 
             // Limit to 20 most recent
@@ -257,4 +206,31 @@ final class AccountController
             'amount' => $transaction->totalAmount()->cents() / 100,
         ];
     }
+    private function getCompanyId(ServerRequestInterface $request): CompanyId
+    {
+        $companyId = $request->getAttribute('companyId');
+        if ($companyId === null) {
+            throw new \InvalidArgumentException('Company ID required');
+        }
+        return CompanyId::fromString($companyId);
+    }
+
+    private function getAccount(ServerRequestInterface $request): Account
+    {
+        $id = $request->getAttribute('id');
+        if ($id === null) {
+            throw new \InvalidArgumentException('Account ID required');
+        }
+
+        $account = $this->accountRepository->findById(
+            AccountId::fromString($id)
+        );
+
+        if ($account === null) {
+            throw new \Domain\Shared\Exception\EntityNotFoundException('Account not found');
+        }
+
+        return $account;
+    }
 }
+

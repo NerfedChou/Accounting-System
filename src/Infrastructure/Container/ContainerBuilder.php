@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Infrastructure\Container;
 
 use Application\Handler\Transaction\CreateTransactionHandler;
+use Application\Handler\Transaction\DeleteTransactionHandler;
 use Application\Handler\Transaction\PostTransactionHandler;
+use Application\Handler\Transaction\UpdateTransactionHandler;
 use Application\Handler\Transaction\VoidTransactionHandler;
 use Domain\Approval\Repository\ApprovalRepositoryInterface;
 use Domain\Audit\Repository\ActivityLogRepositoryInterface;
@@ -221,6 +223,14 @@ final class ContainerBuilder
             )
         );
 
+        $container->singleton(\Application\Handler\Transaction\UpdateTransactionHandler::class, fn(ContainerInterface $c) =>
+            new \Application\Handler\Transaction\UpdateTransactionHandler(
+                $c->get(TransactionRepositoryInterface::class),
+                $c->get(AccountRepositoryInterface::class),
+                $c->get(EventDispatcherInterface::class)
+            )
+        );
+
         $container->singleton(PostTransactionHandler::class, fn(ContainerInterface $c) =>
             new PostTransactionHandler(
                 $c->get(TransactionRepositoryInterface::class),
@@ -235,6 +245,12 @@ final class ContainerBuilder
                 $c->get(TransactionRepositoryInterface::class),
                 $c->get(\Domain\Ledger\Repository\JournalEntryRepositoryInterface::class),
                 $c->get(EventDispatcherInterface::class)
+            )
+        );
+
+        $container->singleton(DeleteTransactionHandler::class, fn(ContainerInterface $c) =>
+            new DeleteTransactionHandler(
+                $c->get(TransactionRepositoryInterface::class)
             )
         );
 

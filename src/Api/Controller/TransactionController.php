@@ -6,12 +6,16 @@ namespace Api\Controller;
 
 use Api\Response\JsonResponse;
 use Application\Command\Transaction\CreateTransactionCommand;
+use Application\Command\Transaction\DeleteTransactionCommand;
 use Application\Command\Transaction\PostTransactionCommand;
 use Application\Command\Transaction\TransactionLineData;
+use Application\Command\Transaction\UpdateTransactionCommand;
 use Application\Command\Transaction\VoidTransactionCommand;
 use Application\Dto\Transaction\TransactionDto;
 use Application\Handler\Transaction\CreateTransactionHandler;
+use Application\Handler\Transaction\DeleteTransactionHandler;
 use Application\Handler\Transaction\PostTransactionHandler;
+use Application\Handler\Transaction\UpdateTransactionHandler;
 use Application\Handler\Transaction\VoidTransactionHandler;
 use Domain\Company\ValueObject\CompanyId;
 use Domain\Transaction\Repository\TransactionRepositoryInterface;
@@ -28,6 +32,8 @@ final class TransactionController
     public function __construct(
         private readonly TransactionRepositoryInterface $transactionRepository,
         private readonly CreateTransactionHandler $createHandler,
+        private readonly UpdateTransactionHandler $updateHandler,
+        private readonly DeleteTransactionHandler $deleteHandler,
         private readonly PostTransactionHandler $postHandler,
         private readonly VoidTransactionHandler $voidHandler,
     ) {
@@ -127,9 +133,82 @@ final class TransactionController
         }
     }
 
+    /**
+     * PUT /api/v1/companies/{companyId}/transactions/{id}
+     */
+    public function update(ServerRequestInterface $request): ResponseInterface
+    {
+        $companyId = $request->getAttribute('companyId');
+        $transactionId = $request->getAttribute('id');
+        $userId = $request->getAttribute('user_id');
+        $body = $request->getParsedBody();
+
+        if ($this->isMissingContext($companyId, $userId) || $transactionId === null) {
+            return JsonResponse::error('Company ID, Transaction ID, and authentication required', 400);
+        }
+
+        $errorResponse = $this->validateCreateRequest($body);
+        if ($errorResponse !== null) {
+            return $errorResponse;
+        }
+
+        try {
+            $command = $this->buildUpdateCommand($companyId, $transactionId, $userId, $body);
+            $dto = $this->updateHandler->handle($command);
+
+            return JsonResponse::success($dto->toArray());
+        } catch (\Throwable $e) {
+            return JsonResponse::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * DELETE /api/v1/companies/{companyId}/transactions/{id}
+     */
+    public function delete(ServerRequestInterface $request): ResponseInterface
+    {
+        $companyId = $request->getAttribute('companyId');
+        $transactionId = $request->getAttribute('id');
+        $userId = $request->getAttribute('user_id');
+
+        if ($this->isMissingContext($companyId, $userId) || $transactionId === null) {
+            return JsonResponse::error('Company ID, Transaction ID, and authentication required', 400);
+        }
+
+        try {
+            $command = new DeleteTransactionCommand(
+                transactionId: $transactionId,
+                companyId: $companyId,
+                deletedBy: $userId
+            );
+
+            $this->deleteHandler->handle($command);
+
+            return JsonResponse::success(['message' => 'Transaction deleted successfully']);
+        } catch (\Throwable $e) {
+            return JsonResponse::error($e->getMessage(), 400);
+        }
+    }
+
     private function isMissingContext(?string $companyId, ?string $userId): bool
     {
         return $companyId === null || $userId === null;
+    }
+
+    private function buildUpdateCommand(string $companyId, string $transactionId, string $userId, array $body): UpdateTransactionCommand
+    {
+        $lines = $this->parseTransactionLines($body['lines']);
+
+        return new UpdateTransactionCommand(
+            transactionId: $transactionId,
+            companyId: $companyId,
+            updatedBy: $userId,
+            description: $body['description'],
+            currency: $body['currency'] ?? 'USD',
+            lines: $lines,
+            transactionDate: $body['date'] ?? null,
+            referenceNumber: $body['reference_number'] ?? null,
+        );
     }
 
     private function buildCreateCommand(string $companyId, string $userId, array $body): CreateTransactionCommand
@@ -250,6 +329,21 @@ final class TransactionController
         $totalDebitsCents = $transaction->totalDebits()->cents();
         $totalCreditsCents = $transaction->totalCredits()->cents();
         
+        // Format lines with debit/credit in dollars for frontend display
+        $lines = [];
+        foreach ($transaction->lines() as $line) {
+            $amountCents = $line->amount()->cents();
+            $amountDollars = $amountCents / 100;
+            
+            $lines[] = [
+                'account_id' => $line->accountId()->toString(),
+                'account_name' => $line->accountId()->toString(), // Frontend resolves name
+                'debit' => $line->isDebit() ? $amountDollars : 0,
+                'credit' => $line->isCredit() ? $amountDollars : 0,
+                'description' => $line->description(),
+            ];
+        }
+        
         return [
             'id' => $transaction->id()->toString(),
             'company_id' => $transaction->companyId()->toString(),
@@ -264,6 +358,7 @@ final class TransactionController
             'reference_number' => $transaction->referenceNumber(),
             'created_at' => $transaction->createdAt()->format('Y-m-d\TH:i:s\Z'),
             'posted_at' => $transaction->postedAt()?->format('Y-m-d\TH:i:s\Z'),
+            'lines' => $lines,
         ];
     }
 }

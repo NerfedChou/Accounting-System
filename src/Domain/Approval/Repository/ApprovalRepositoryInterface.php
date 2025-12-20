@@ -44,4 +44,10 @@ interface ApprovalRepositoryInterface
      * Count all pending approvals system-wide.
      */
     public function countPending(): int;
+
+    /**
+     * Get recent pending approvals system-wide with company info.
+     * @return array<array>
+     */
+    public function findRecentPending(int $limit = 5): array;
 }

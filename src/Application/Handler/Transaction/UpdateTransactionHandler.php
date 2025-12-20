@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Application\Handler\Transaction;
 
 use Application\Command\CommandInterface;
-use Application\Command\Transaction\CreateTransactionCommand;
+use Application\Command\Transaction\UpdateTransactionCommand;
 use Application\Dto\Transaction\TransactionDto;
 use Application\Dto\Transaction\TransactionLineDto;
 use Application\Handler\HandlerInterface;
@@ -14,18 +14,20 @@ use Domain\ChartOfAccounts\ValueObject\AccountId;
 use Domain\Company\ValueObject\CompanyId;
 use Domain\Identity\ValueObject\UserId;
 use Domain\Shared\Event\EventDispatcherInterface;
+use Domain\Shared\Exception\BusinessRuleException;
 use Domain\Shared\ValueObject\Currency;
 use Domain\Shared\ValueObject\Money;
 use Domain\Transaction\Entity\Transaction;
 use Domain\Transaction\Repository\TransactionRepositoryInterface;
 use Domain\Transaction\ValueObject\LineType;
+use Domain\Transaction\ValueObject\TransactionId;
 
 /**
- * Handler for creating a transaction.
+ * Handler for updating a draft transaction.
  *
- * @implements HandlerInterface<CreateTransactionCommand>
+ * @implements HandlerInterface<UpdateTransactionCommand>
  */
-final readonly class CreateTransactionHandler implements HandlerInterface
+final readonly class UpdateTransactionHandler implements HandlerInterface
 {
     public function __construct(
         private TransactionRepositoryInterface $transactionRepository,
@@ -36,27 +38,41 @@ final readonly class CreateTransactionHandler implements HandlerInterface
 
     public function handle(CommandInterface $command): TransactionDto
     {
-        assert($command instanceof CreateTransactionCommand);
+        assert($command instanceof UpdateTransactionCommand);
+
+        $transactionId = TransactionId::fromString($command->transactionId);
+        $transaction = $this->transactionRepository->findById($transactionId);
+
+        if ($transaction === null) {
+            throw new \DomainException("Transaction not found: {$command->transactionId}");
+        }
+
+        if (!$transaction->isDraft()) {
+            throw new BusinessRuleException('Only draft transactions can be updated');
+        }
 
         $companyId = CompanyId::fromString($command->companyId);
-        $createdBy = UserId::fromString($command->createdBy);
-        // Handler was using ->date, Command has ->transactionDate
-        $transactionDate = $command->transactionDate 
-            ? new \DateTimeImmutable($command->transactionDate) 
-            : new \DateTimeImmutable();
-            
+        if (!$transaction->companyId()->equals($companyId)) {
+            throw new \DomainException('Transaction does not belong to the specified company');
+        }
+
+        $updatedBy = UserId::fromString($command->updatedBy);
+        $transactionDate = $command->transactionDate
+            ? new \DateTimeImmutable($command->transactionDate)
+            : $transaction->transactionDate();
+
         $currency = Currency::from($command->currency);
 
-        // Create transaction header
-        $transaction = Transaction::create(
-            companyId: $companyId,
+        // Update transaction header
+        $transaction->update(
             transactionDate: $transactionDate,
             description: $command->description,
-            createdBy: $createdBy,
             referenceNumber: $command->referenceNumber,
+            updatedBy: $updatedBy,
         );
 
-        // Add lines
+        // Clear existing lines and add new ones
+        $transaction->clearLines();
         $this->processTransactionLines($command, $transaction, $companyId, $currency);
 
         // Persist
@@ -71,7 +87,7 @@ final readonly class CreateTransactionHandler implements HandlerInterface
     }
 
     private function processTransactionLines(
-        CreateTransactionCommand $command,
+        UpdateTransactionCommand $command,
         Transaction $transaction,
         CompanyId $companyId,
         Currency $currency
@@ -94,8 +110,8 @@ final readonly class CreateTransactionHandler implements HandlerInterface
 
             $transaction->addLine(
                 accountId: $accountId,
-                lineType: LineType::from($lineData->lineType), // was type
-                amount: Money::fromCents($lineData->amountCents, $currency), // was amount
+                lineType: LineType::from($lineData->lineType),
+                amount: Money::fromCents($lineData->amountCents, $currency),
                 description: $lineData->description,
             );
         }
@@ -104,21 +120,13 @@ final readonly class CreateTransactionHandler implements HandlerInterface
     private function toDto(Transaction $transaction): TransactionDto
     {
         $lines = [];
-        // Need to loop with index to get line order if not available, but TransactionLine likely has it?
-        // TransactionLine entity Inspection needed? 
-        // Assuming TransactionLine works.
-        // But Transaction::lines() returns array<TransactionLine>.
-        // Let's assume lines are in order.
         $i = 0;
         foreach ($transaction->lines() as $line) {
-            $accountId = $line->accountId();
-            $account = $this->accountRepository->findById($accountId);
-            
             $lines[] = new TransactionLineDto(
                 id: (string)$i,
-                accountId: $accountId->toString(),
-                accountCode: $account ? $account->code() : 'Unknown',
-                accountName: $account ? $account->name() : 'Unknown',
+                accountId: $line->accountId()->toString(),
+                accountCode: 'Unknown',
+                accountName: 'Unknown',
                 lineType: $line->lineType()->value,
                 amountCents: $line->amount()->cents(),
                 lineOrder: $i++,
@@ -128,12 +136,12 @@ final readonly class CreateTransactionHandler implements HandlerInterface
 
         return new TransactionDto(
             id: $transaction->id()->toString(),
-            transactionNumber: $transaction->id()->toString(), // Was $transaction->transactionNumber()
+            transactionNumber: $transaction->id()->toString(),
             companyId: $transaction->companyId()->toString(),
             status: $transaction->status()->value,
             description: $transaction->description(),
-            totalDebitsCents: $transaction->totalDebits()->cents(), // Money::cents()
-            totalCreditsCents: $transaction->totalCredits()->cents(), // Money::cents()
+            totalDebitsCents: $transaction->totalDebits()->cents(),
+            totalCreditsCents: $transaction->totalCredits()->cents(),
             lines: $lines,
             referenceNumber: $transaction->referenceNumber(),
             transactionDate: $transaction->transactionDate()->format('Y-m-d'),

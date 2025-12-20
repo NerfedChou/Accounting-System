@@ -11,7 +11,9 @@ use Application\Handler\HandlerInterface;
 use Domain\Company\ValueObject\CompanyId;
 use Domain\Identity\Entity\User;
 use Domain\Identity\Repository\UserRepositoryInterface;
+use Domain\Identity\ValueObject\Password;
 use Domain\Identity\ValueObject\Role;
+use Domain\Identity\ValueObject\Username;
 use Domain\Shared\Event\EventDispatcherInterface;
 use Domain\Shared\ValueObject\Email;
 
@@ -44,9 +46,9 @@ final readonly class RegisterUserHandler implements HandlerInterface
 
         // Create user (using actual domain signature)
         $user = User::register(
-            username: $command->username,
+            username: Username::fromString($command->username),
             email: Email::fromString($command->email),
-            password: $command->password,
+            password: Password::fromString($command->password),
             role: Role::TENANT,
             companyId: $command->companyId ? CompanyId::fromString($command->companyId) : null,
         );

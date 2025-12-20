@@ -14,6 +14,7 @@ use Domain\Shared\ValueObject\Currency;
 use Domain\Shared\ValueObject\Money;
 use Domain\Transaction\Event\TransactionCreated;
 use Domain\Transaction\Event\TransactionPosted;
+use Domain\Transaction\Event\TransactionUpdated;
 use Domain\Transaction\Event\TransactionVoided;
 use Domain\Transaction\ValueObject\LineType;
 use Domain\Transaction\ValueObject\TransactionId;
@@ -36,12 +37,12 @@ final class Transaction
     private function __construct(
         private readonly TransactionId $id,
         private readonly CompanyId $companyId,
-        private readonly DateTimeImmutable $transactionDate,
-        private readonly string $description,
+        private DateTimeImmutable $transactionDate,
+        private string $description,
         private readonly UserId $createdBy,
         private readonly DateTimeImmutable $createdAt,
         private TransactionStatus $status,
-        private readonly ?string $referenceNumber,
+        private ?string $referenceNumber,
     ) {
     }
 
@@ -93,6 +94,33 @@ final class Transaction
         );
 
         $this->lines[] = $line;
+    }
+
+    public function clearLines(): void
+    {
+        $this->ensureCanModify();
+        $this->lines = [];
+    }
+
+    public function update(
+        DateTimeImmutable $transactionDate,
+        string $description,
+        ?string $referenceNumber,
+        UserId $updatedBy,
+    ): void {
+        $this->ensureCanModify();
+
+        $this->transactionDate = $transactionDate;
+        $this->description = $description;
+        $this->referenceNumber = $referenceNumber;
+
+        $this->recordEvent(new TransactionUpdated(
+            transactionId: $this->id->toString(),
+            companyId: $this->companyId->toString(),
+            description: $description,
+            updatedBy: $updatedBy->toString(),
+            occurredAt: new DateTimeImmutable(),
+        ));
     }
 
     public function post(UserId $postedBy): void

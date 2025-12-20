@@ -7,9 +7,11 @@ namespace Tests\Unit\Domain\Identity\Entity;
 use DateTimeImmutable;
 use Domain\Company\ValueObject\CompanyId;
 use Domain\Identity\Entity\User;
+use Domain\Identity\ValueObject\Password;
 use Domain\Identity\ValueObject\RegistrationStatus;
 use Domain\Identity\ValueObject\Role;
 use Domain\Identity\ValueObject\UserId;
+use Domain\Identity\ValueObject\Username;
 use Domain\Shared\Exception\AuthenticationException;
 use Domain\Shared\Exception\BusinessRuleException;
 use Domain\Shared\Exception\InvalidArgumentException;
@@ -22,9 +24,9 @@ final class UserTest extends TestCase
     {
         $companyId = CompanyId::generate();
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: $companyId
         );
@@ -40,9 +42,9 @@ final class UserTest extends TestCase
     public function test_creates_admin_user_without_company(): void
     {
         $user = User::register(
-            username: 'admin.user',
+            username: Username::fromString('admin.user'),
             email: Email::fromString('admin@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::ADMIN,
             companyId: null
         );
@@ -54,9 +56,9 @@ final class UserTest extends TestCase
     public function test_hashes_password_on_creation(): void
     {
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::ADMIN,
             companyId: null
         );
@@ -71,9 +73,9 @@ final class UserTest extends TestCase
         $this->expectExceptionMessage('Password must be at least 8 characters');
 
         User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Pass1',
+            password: Password::fromString('Pass1'),
             role: Role::ADMIN,
             companyId: null
         );
@@ -85,9 +87,9 @@ final class UserTest extends TestCase
         $this->expectExceptionMessage('Password must contain uppercase letter');
 
         User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'password123',
+            password: Password::fromString('password123'),
             role: Role::ADMIN,
             companyId: null
         );
@@ -99,9 +101,9 @@ final class UserTest extends TestCase
         $this->expectExceptionMessage('Password must contain lowercase letter');
 
         User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'PASSWORD123',
+            password: Password::fromString('PASSWORD123'),
             role: Role::ADMIN,
             companyId: null
         );
@@ -113,9 +115,9 @@ final class UserTest extends TestCase
         $this->expectExceptionMessage('Password must contain digit');
 
         User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Passworddd',
+            password: Password::fromString('Passworddd'),
             role: Role::ADMIN,
             companyId: null
         );
@@ -127,9 +129,9 @@ final class UserTest extends TestCase
         $this->expectExceptionMessage('Admins cannot belong to a company');
 
         User::register(
-            username: 'admin.user',
+            username: Username::fromString('admin.user'),
             email: Email::fromString('admin@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::ADMIN,
             companyId: CompanyId::generate()
         );
@@ -141,9 +143,9 @@ final class UserTest extends TestCase
         $this->expectExceptionMessage('Tenants must belong to a company');
 
         User::register(
-            username: 'tenant.user',
+            username: Username::fromString('tenant.user'),
             email: Email::fromString('tenant@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: null
         );
@@ -170,9 +172,9 @@ final class UserTest extends TestCase
     public function test_pending_user_cannot_authenticate(): void
     {
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -186,9 +188,9 @@ final class UserTest extends TestCase
     public function test_declined_user_cannot_authenticate(): void
     {
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -215,9 +217,9 @@ final class UserTest extends TestCase
     public function test_user_can_be_approved(): void
     {
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -231,9 +233,9 @@ final class UserTest extends TestCase
     public function test_user_cannot_self_approve(): void
     {
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -258,9 +260,9 @@ final class UserTest extends TestCase
     public function test_user_can_be_declined(): void
     {
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -285,9 +287,9 @@ final class UserTest extends TestCase
     public function test_releases_domain_events(): void
     {
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -301,9 +303,9 @@ final class UserTest extends TestCase
     public function test_release_events_clears_event_list(): void
     {
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );
@@ -317,9 +319,9 @@ final class UserTest extends TestCase
     private function createApprovedTenantUser(): User
     {
         $user = User::register(
-            username: 'john.doe',
+            username: Username::fromString('john.doe'),
             email: Email::fromString('john@example.com'),
-            password: 'Password123',
+            password: Password::fromString('Password123'),
             role: Role::TENANT,
             companyId: CompanyId::generate()
         );

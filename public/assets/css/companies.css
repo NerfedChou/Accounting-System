@@ -1,0 +1,71 @@
+/**
+ * Companies Page Styles
+ * Page-specific styles for company management
+ */
+
+/* Status Badges */
+.status-active {
+    background: rgba(46, 160, 67, 0.15);
+    color: #3fb950;
+}
+
+.status-pending {
+    background: rgba(187, 128, 9, 0.15);
+    color: #d29922;
+}
+
+.status-suspended {
+    background: rgba(248, 81, 73, 0.15);
+    color: #f85149;
+}
+
+/* Form Section Divider */
+.form-section {
+    margin: 1.5rem 0 1rem;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.5rem;
+}
+
+.form-section-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Form Row for Side-by-Side Inputs */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+/* Required Field Indicator */
+.required {
+    color: var(--danger);
+}
+
+/* Medium Modal Size */
+.modal-md {
+    max-width: 560px;
+}
+
+/* Currency Badge */
+.currency-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+}
+
+/* Table Company Name - Bold */
+.company-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
